@@ -1,6 +1,6 @@
 # 定数定義
 DOCKER_IMAGE_NAME = home-away-nextjs-app
-# DOCKER_CONTAINER_NAME = home-away-nextjs-container
+DOCKER_CONTAINER_NAME = home-away-nextjs-app-1
 PORT = 3000
 
 # デフォルトのターゲット
