@@ -34,3 +34,9 @@ clear-cache:
 # ローカル環境でテストの実行
 test:
 	docker run --rm -it -v $(PWD):/app -w /app $(DOCKER_IMAGE_NAME) npm test
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
