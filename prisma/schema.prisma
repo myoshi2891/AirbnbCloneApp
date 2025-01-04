@@ -1,14 +1,21 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+generator client {
+  provider = "prisma-client-js"
+  // binaryTargets = ["native", "linux-musl"]
+}
 
-model TestProfile {
+model Profile {
   id String @id @default(uuid())
-  name String 
+  clerkId String
+  firstName String
+  lastName String
+  username String 
+  email String 
+  profileImage String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
