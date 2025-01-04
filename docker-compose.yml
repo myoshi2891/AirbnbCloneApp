@@ -1,15 +1,31 @@
-# version: '3.9'
-
 services:
+  postgres:
+    image: postgres
+    restart: always
+    container_name: nextjs_postgres
+    environment:
+      TZ: Asia/Tokyo
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   nextjs-app:
     build:
       context: .
       dockerfile: Dockerfile
+    # DATABASE_URL: $DATABASE_URL
     ports:
       - "3000:3000" # Expose port 3000 for the Next.js app
     volumes:
       - .:/app       # Mount the current directory for hot reloading in dev
       - /app/node_modules # Avoid overwriting `node_modules` in the container
+    depends_on:
+      - postgres
     environment:
       NODE_ENV: development # Set the environment to development
     command: npm run dev # Use the development server for Next.js
+
+volumes:
+  postgres_data:
