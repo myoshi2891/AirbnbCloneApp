@@ -1,16 +1,4 @@
 services:
-  postgres:
-    image: postgres
-    restart: always
-    container_name: nextjs_postgres
-    environment:
-      TZ: Asia/Tokyo
-      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   nextjs-app:
     build:
       context: .
@@ -24,8 +12,20 @@ services:
     depends_on:
       - postgres
     environment:
+      TZ: Asia/Tokyo
       NODE_ENV: development # Set the environment to development
     command: npm run dev # Use the development server for Next.js
 
+  postgres:
+    image: postgres
+    restart: always
+    container_name: nextjs_postgres
+    environment:
+      TZ: Asia/Tokyo
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 volumes:
   postgres_data:
