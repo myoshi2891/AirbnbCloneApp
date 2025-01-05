@@ -1,2 +1,30 @@
+# Node.js の例: node_modules を除外
 node_modules
+npm-debug.log
+pnpm-debug.log
+
+# 一般的なエディタや IDE のファイルを除外
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Git 関連の無視ファイルを追加で無視
+.git
 .gitignore
+
+# Dockerfile や Compose で利用しない他の設定ファイルを除外
+docker-compose.override.yml
+
+# ログファイルや一時ファイルを除外
+*.log
+*.tmp
+*.bak
+*.orig
+
+# その他プロジェクト固有の無視対象
+# テストレポートやカバレッジファイル
+coverage/
+*.lcov
+
+.env

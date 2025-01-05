@@ -4,13 +4,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 generator client {
-  provider = "prisma-client-js"
-  // binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
-
 model Profile {
   id String @id @default(uuid())
-  clerkId String
+  clerkId String @unique
   firstName String
   lastName String
   username String 

@@ -14,13 +14,13 @@ services:
   nextjs-app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     # DATABASE_URL: $DATABASE_URL
     ports:
       - "3000:3000" # Expose port 3000 for the Next.js app
     volumes:
-      - .:/app       # Mount the current directory for hot reloading in dev
       - /app/node_modules # Avoid overwriting `node_modules` in the container
+      - .:/app       # Mount the current directory for hot reloading in dev
     depends_on:
       - postgres
     environment:

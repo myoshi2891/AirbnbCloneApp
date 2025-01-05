@@ -3,6 +3,7 @@ import { fetchProfileImage } from "@/utils/actions";
 
 async function UserIcon() {
 	const profileImage = await fetchProfileImage();
+
 	if (profileImage) {
 		return (
 			<img
@@ -11,6 +12,7 @@ async function UserIcon() {
 			/>
 		);
 	}
+
 	return (
 		<LuUser className="w-6 h-6 bg-primary rounded-full text-white">
 			UserIcon
