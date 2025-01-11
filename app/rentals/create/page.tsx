@@ -32,12 +32,9 @@ function CreatePropertyPage() {
 							label="Tagline (30 limit)"
 							defaultValue="Dream Getaway Awaits You here"
 						/>
-						{/* price */}
 						<PriceInput />
-						{/* categories */}
 						<CategoriesInput />
 					</div>
-					{/* text area / description */}
 					<TextAreaInput
 						name="description"
 						labelText="Description (10 - 1000 words)"
@@ -49,7 +46,7 @@ function CreatePropertyPage() {
 					<h3 className="text-lg mt-8 mb-4 font-medium">
 						Accomodation Details
 					</h3>
-					<CounterInput detail="guest" />
+					<CounterInput detail="guests" />
 					<CounterInput detail="bedrooms" />
 					<CounterInput detail="beds" />
 					<CounterInput detail="baths" />
