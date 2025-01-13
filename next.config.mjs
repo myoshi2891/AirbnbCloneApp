@@ -19,6 +19,11 @@ const nextConfig = {
 	// 	};
 	// 	return config;
 	// },
+	// reactStrictMode: true,
+	// env: {
+	// 	CUSTOM_VARIABLE: "value",
+	// },
 };
+
 
 export default nextConfig;

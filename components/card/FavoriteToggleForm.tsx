@@ -20,6 +20,8 @@ function FavoriteToggleForm({
 		favoriteId,
 		pathname,
 	});
+	// const toggleAction = () =>
+	// 	toggleFavoriteAction({ propertyId, favoriteId, pathname });
 
 	return (
 		<FormContainer action={toggleAction}>

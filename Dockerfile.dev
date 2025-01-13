@@ -16,15 +16,15 @@ COPY package*.json ./
 
 RUN npm config set legacy-peer-deps true
 # Install dependencies
-RUN npm install
+RUN npm ci
 
 # Copy the entire app source
 COPY . .
 
 RUN npx prisma generate
-
+# RUN npm run build
 # Expose the application port
 EXPOSE 3000
 
 # Set the default command for the container
-CMD ["npm", "start"]
+# CMD ["npm", "run", "dev"]

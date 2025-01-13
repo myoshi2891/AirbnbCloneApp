@@ -10,7 +10,7 @@ services:
     volumes:
       - /app/node_modules # Avoid overwriting `node_modules` in the container
       - .:/app       # Mount the current directory for hot reloading in 
-      - /app/.next
+      # - /app/.next
     depends_on:
       - postgres
     environment:
