@@ -200,7 +200,7 @@ export const fetchFavoriteId = async ({
 	propertyId: string;
 }) => {
 	const user = await getAuthUser();
-	const favorite = await db.favorite?.findFirst({
+	const favorite = await db.favorite.findFirst({
 		where: {
 			propertyId,
 			profileId: user.id,
@@ -222,13 +222,13 @@ export const toggleFavoriteAction = async (prevState: {
 
 	try {
 		if (favoriteId) {
-			await db.favorite?.delete({
+			await db.favorite.delete({
 				where: {
 					id: favoriteId,
 				},
 			});
 		} else if (!favoriteId) {
-			await db.favorite?.create({
+			await db.favorite.create({
 				data: {
 					propertyId,
 					profileId: user.id,
@@ -245,6 +245,27 @@ export const toggleFavoriteAction = async (prevState: {
 	} catch (error) {
 		return renderError(error);
 	}
+};
 
-	return { message: "toggle favorite" };
+export const fetchFavorites = async () => {
+	const user = await getAuthUser();
+	const favorites = await db.favorite.findMany({
+		where: {
+			profileId: user.id,
+		},
+		select: {
+			property: {
+				select: {
+					id: true,
+					name: true,
+					tagline: true,
+					country: true,
+					price: true,
+					image: true,
+				},
+			},
+		},
+	});
+
+	return favorites.map((favorite) => favorite.property);
 };
