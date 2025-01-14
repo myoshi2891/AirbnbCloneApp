@@ -1,4 +1,4 @@
-function ReviewCard() {
+function ReviewCard({ reviewInfo }: { reviewInfo: any }) {
 	return <div>ReviewCard</div>;
 }
 

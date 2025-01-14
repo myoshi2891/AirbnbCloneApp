@@ -1,70 +1,69 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
 model Profile {
-  id String @id @default(uuid())
-  clerkId String @unique
-  firstName String
-  lastName String
-  username String 
-  email String 
+  id           String     @id @default(uuid())
+  clerkId      String     @unique
+  firstName    String
+  lastName     String
+  username     String
+  email        String
   profileImage String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  properties Property[]
-  favorites Favorite[]
-  reviews Review[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  favorites    Favorite[]
+  properties   Property[]
+  reviews      Review[]
 }
 
 model Property {
-  id String @id @default(uuid())
-  name String 
-  tagline String
-  category String
-  image String
-  country String
+  id          String     @id @default(uuid())
+  name        String
+  tagline     String
+  category    String
+  image       String
+  country     String
   description String
-  price Int
-  guests Int
-  bedrooms Int
-  beds Int
-  baths Int
-  amenities String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  profile Profile @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
-  profileId String
-  favorites Favorite[]
-  reviews Review[]
+  price       Int
+  guests      Int
+  bedrooms    Int
+  beds        Int
+  baths       Int
+  amenities   String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  profileId   String
+  favorites   Favorite[]
+  profile     Profile    @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
+  reviews     Review[]
 }
 
 model Favorite {
-  id String @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  profile Profile @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
-  profileId String
-
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  profileId  String
   propertyId String
+  profile    Profile  @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model Review {
-  id String @id @default(uuid())
-  profile Profile @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
-  profileId String
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  profileId  String
   propertyId String
-  rating Int
-  comment String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  profile    Profile  @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
-

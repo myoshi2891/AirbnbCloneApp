@@ -11,12 +11,14 @@ services:
       - /app/node_modules # Avoid overwriting `node_modules` in the container
       - .:/app       # Mount the current directory for hot reloading in 
       # - /app/.next
+    env_file:
+      - .env
     depends_on:
       - postgres
     environment:
       TZ: Asia/Tokyo
       NODE_ENV: development # Set the environment to development
-      # CHOKIDAR_USEPOLLING: true
+      CHOKIDAR_USEPOLLING: true
       # CHOKIDAR_INTERVAL: 1000
     command: npm run dev # Use the development server for Next.js
 
