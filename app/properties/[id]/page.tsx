@@ -3,7 +3,7 @@ import BreadCrumbs from "@/components/properties/BreadCrumbs";
 import ShareButton from "@/components/properties/ShareButton";
 import { fetchPropertyDetails, findExistingReview } from "@/utils/actions";
 import { redirect } from "next/navigation";
-import ImageContainer from "./ImageContainer";
+import ImageContainer from "@/components/properties/ImageContainer";
 import PropertyRating from "@/components/card/PropertyRating";
 import BookingCalender from "@/components/properties/BookingCalender";
 import PropertyDetails from "@/components/properties/PropertyDetails";
