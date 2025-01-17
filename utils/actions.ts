@@ -307,6 +307,7 @@ export const createReviewAction = async (
 		return renderError(error);
 	}
 };
+
 export const fetchPropertyReviews = async (propertyId: string) => {
 	const reviews = await db.review.findMany({
 		where: {
@@ -329,6 +330,7 @@ export const fetchPropertyReviews = async (propertyId: string) => {
 	});
 	return reviews;
 };
+
 export const fetchPropertyReviewsByUser = async () => {
 	const user = await getAuthUser();
 	const reviews = await db.review.findMany({
@@ -349,6 +351,7 @@ export const fetchPropertyReviewsByUser = async () => {
 	});
 	return reviews;
 };
+
 export const deleteReviewAction = async (prevState: { reviewId: string }) => {
 	const { reviewId } = prevState;
 	const user = await getAuthUser();
@@ -379,6 +382,7 @@ export async function fetchPropertyRating(propertyId: string) {
 			propertyId,
 		},
 	});
+
 	return {
 		rating: result[0]?._avg.rating?.toFixed() ?? 0,
 		count: result[0]?._count.rating ?? 0,
