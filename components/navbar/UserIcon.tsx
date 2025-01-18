@@ -8,8 +8,8 @@ async function UserIcon() {
 	if (profileImage) {
 		return (
 			<Image
-				width={6}
-				height={6}
+				width={32}
+				height={32}
 				alt="profile image"
 				src={profileImage}
 				className="w-6 h-6 rounded-full object-cover"
