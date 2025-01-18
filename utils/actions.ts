@@ -272,7 +272,7 @@ export const fetchFavorites = async () => {
 };
 
 export const fetchPropertyDetails = async (id: string) => {
-	return db.property.findUnique({
+	const property = await db.property.findUnique({
 		where: {
 			id,
 		},
@@ -286,6 +286,8 @@ export const fetchPropertyDetails = async (id: string) => {
 			},
 		},
 	});
+
+	return property;
 };
 
 export const createReviewAction = async (
