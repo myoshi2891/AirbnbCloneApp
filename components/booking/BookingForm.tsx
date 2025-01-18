@@ -31,7 +31,7 @@ function BookingForm() {
 
 function FormRow({ label, amount }: { label: string; amount: number }) {
 	return (
-		<p className="flex justfy-between text-sm mb-2">
+		<p className="flex justify-between text-sm mb-2">
 			<span>{label}</span>
 			<span>{formatCurrency(amount)}</span>
 		</p>
