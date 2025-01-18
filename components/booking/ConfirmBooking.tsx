@@ -23,9 +23,9 @@ function ConfirmBooking() {
 	}
 
 	const createBooking = createBookingAction.bind(null, {
-		// propertyId,
-		// checkIn,
-		// checkOut,
+		propertyId,
+		checkIn,
+		checkOut,
 	});
 
 	return (
