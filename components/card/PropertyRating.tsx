@@ -10,8 +10,6 @@ async function PropertyRating({
 	const { rating, count } = await fetchPropertyRating(propertyId);
 	if (count === 0) return null;
 
-	console.log(count, rating);
-
 	const className = `flex gap-1 items-center ${
 		inPage ? "text-md" : "text-xs"
 	}`;
