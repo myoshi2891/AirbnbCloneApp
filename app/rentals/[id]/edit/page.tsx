@@ -18,7 +18,8 @@ import ImageInputContainer from "@/components/form/ImageInputContainer";
 
 async function EditRentalPage({ params }: { params: { id: string } }) {
 	const property = await fetchRentalDetails(params.id);
-	if (!property) redirect("/");
+    if (!property) redirect("/");
+	const defaultAmenities: Amenity[] = JSON.parse(property.amenities);
 
 	return (
 		<section>
@@ -74,6 +75,10 @@ async function EditRentalPage({ params }: { params: { id: string } }) {
 						detail="baths"
 						defaultValue={property.baths}
 					/>
+					<h3 className="text-lg mt-10 mb-6 font-medium">
+						Amenities
+					</h3>
+					<AmenitiesInput defaultValue={defaultAmenities} />
 					<SubmitButton text="edit property" className="mt-12" />
 				</FormContainer>
 			</div>
