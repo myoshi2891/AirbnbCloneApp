@@ -32,6 +32,7 @@ export const generateDateRange = (range: DateRange | undefined): string[] => {
 	if (!range || !range.from || !range.to) return [];
 
 	let currentDate = new Date(range.from);
+	console.log(currentDate);
 	const endDate = new Date(range.to);
 	const dateRange: string[] = [];
 
@@ -40,6 +41,7 @@ export const generateDateRange = (range: DateRange | undefined): string[] => {
 		dateRange.push(dateString);
 		currentDate.setDate(currentDate.getDate() + 1);
 	}
+	console.log(dateRange);
 
 	return dateRange;
 };
