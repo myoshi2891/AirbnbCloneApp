@@ -56,14 +56,17 @@ export const generateDisabledDates = (
 	disabledDays.forEach((range) => {
 		if (!range.from || !range.to) return;
 
-		let currentDate = new Date(range.from);
 		const endDate = new Date(range.to);
+		if (endDate < today) return;
+
+		let currentDate = new Date(range.from);
+		if (currentDate < today) currentDate = new Date(today);
 
 		while (currentDate <= endDate) {
-			if (currentDate < today) {
-				currentDate.setDate(currentDate.getDate() + 1);
-				continue;
-			}
+			// if (currentDate < today) {
+			// 	currentDate.setDate(currentDate.getDate() + 1);
+			// 	continue;
+			// }
 			const dateString = currentDate.toISOString().split("T")[0];
 			disabledDates[dateString] = true;
 			currentDate.setDate(currentDate.getDate() + 1);
