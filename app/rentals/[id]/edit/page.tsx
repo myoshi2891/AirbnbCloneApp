@@ -30,7 +30,7 @@ async function EditRentalPage({ params }: { params: { id: string } }) {
 				<ImageInputContainer
 					name={property.name}
 					text="Update Image"
-					action={updatePropertyAction}
+					action={updatePropertyImageAction}
 					image={property.image}
 				>
 					<input type="hidden" name="id" value={property.id} />
