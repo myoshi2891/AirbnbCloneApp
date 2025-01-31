@@ -11,7 +11,7 @@ datasource db {
 
 model Profile {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  clerkId      String     @unique
+  clerkId      String     @unique 
   firstName    String
   lastName     String
   username     String
