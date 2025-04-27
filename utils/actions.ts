@@ -60,6 +60,7 @@ export const createProfileAction = async (
 			},
 		});
 	} catch (error) {
+		console.error("createProfileAction エラー発生！", error);
 		return renderError(error);
 	}
 
@@ -157,18 +158,11 @@ export const createPropertyAction = async (
 			image: file,
 		});
 		const fullPath = await uploadImage(validatedFile.image);
-		const profile = await db.profile.findUnique({
-			where: { clerkId: user.id },
-		});
-
-		if (!profile) {
-			return { message: "Profile not found for the current user." };
-		}
 		await db.property.create({
 			data: {
 				...validatedFields,
 				image: fullPath,
-				profileId: profile.id,
+				profileId: user.id,
 			},
 		});
 	} catch (error) {
