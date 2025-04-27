@@ -4,13 +4,13 @@ generator client {
 }
 
 datasource db {
-  provider  = "mongodb"
+  provider  = "postgresql"
   url       = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Profile {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  id           String     @id @default(uuid())
   clerkId      String     @unique 
   firstName    String
   lastName     String
@@ -26,7 +26,7 @@ model Profile {
 }
 
 model Property {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  id          String     @id @default(uuid())
   name        String
   tagline     String
   category    String
@@ -49,19 +49,19 @@ model Property {
 }
 
 model Favorite {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(uuid())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   profileId  String
-  propertyId String @db.ObjectId
+  propertyId String 
   profile    Profile  @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 
 model Review {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(uuid())
   profileId  String 
-  propertyId String @db.ObjectId
+  propertyId String
   rating     Int
   comment    String
   createdAt  DateTime @default(now())
@@ -71,9 +71,9 @@ model Review {
 }
 
 model Booking {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @id @default(uuid())
   profileId     String
-  propertyId    String @db.ObjectId
+  propertyId    String 
   orderTotal    Int
   totalNights   Int
   checkIn       DateTime
