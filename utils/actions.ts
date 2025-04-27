@@ -157,20 +157,18 @@ export const createPropertyAction = async (
 			image: file,
 		});
 		const fullPath = await uploadImage(validatedFile.image);
-
 		const profile = await db.profile.findUnique({
-			where: { id: user.id },
+			where: { clerkId: user.id },
 		});
 
 		if (!profile) {
-			return { message: "Profile not found for the user." };
+			return { message: "Profile not found for the current user." };
 		}
-		
 		await db.property.create({
 			data: {
 				...validatedFields,
 				image: fullPath,
-				profileId: user.id,
+				profileId: profile.id,
 			},
 		});
 	} catch (error) {
