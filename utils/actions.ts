@@ -186,7 +186,7 @@ export const fetchProperties = async ({
 }) => {
 	const properties = await db.property.findMany({
 		where: {
-			category,
+			...(category ? { category } : {}),
 			OR: [
 				{ name: { contains: search, mode: "insensitive" } },
 				{ tagline: { contains: search, mode: "insensitive" } },
