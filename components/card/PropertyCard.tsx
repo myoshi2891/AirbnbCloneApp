@@ -21,9 +21,6 @@ function PropertyCard({ property }: { property: PropertyCardProps }) {
 						alt={name}
 						className="rounded-md object-cover transform group-hover:scale-110 transition-transform duration-500"
 						priority
-						onError={(e) => {
-							console.error("Image load error", e);
-						}}
 					/>
 				</div>
 				<div className="flex justify-between items-center">
