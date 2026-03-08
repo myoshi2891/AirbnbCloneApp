@@ -52,7 +52,7 @@ describe("POST /api/payment", () => {
 			headers: { origin: "http://localhost:3000" },
 		});
 
-		const response = await POST(req, {} as never);
+		const response = await POST(req);
 		const data = await response.json();
 
 		expect(data.clientSecret).toBe("cs_test_123");
@@ -71,7 +71,7 @@ describe("POST /api/payment", () => {
 			headers: { origin: "http://localhost:3000" },
 		});
 
-		const response = await POST(req, {} as never);
+		const response = await POST(req);
 		expect(response.status).toBe(404);
 	});
 });
