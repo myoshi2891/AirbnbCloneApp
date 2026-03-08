@@ -32,7 +32,7 @@ async function PropertyDetailsPage({
 	const firstName = property.profile.firstName;
 	const profileImage = property.profile.profileImage;
 
-	const { userId } = auth();
+	const { userId } = await auth();
 	const isNotOwner = property.profile.clerkId !== userId;
 	const reviewDoesNotExist =
 		userId &&
