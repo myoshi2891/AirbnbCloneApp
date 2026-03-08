@@ -16,8 +16,13 @@ import { redirect } from "next/navigation";
 import { type Amenity } from "@/utils/amenities";
 import ImageInputContainer from "@/components/form/ImageInputContainer";
 
-async function EditRentalPage({ params }: { params: { id: string } }) {
-	const property = await fetchRentalDetails(params.id);
+async function EditRentalPage({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
+	const { id } = await params;
+	const property = await fetchRentalDetails(id);
     if (!property) redirect("/");
 	const defaultAmenities: Amenity[] = JSON.parse(property.amenities);
 

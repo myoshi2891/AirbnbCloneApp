@@ -3,22 +3,17 @@ import CategoriesList from "@/components/home/CategoriesList";
 import PropertiesContainer from "@/components/home/PropertiesContainer";
 import { Suspense } from "react";
 
-function HomePage({
+async function HomePage({
 	searchParams,
 }: {
-	searchParams: { category?: string; search?: string };
+	searchParams: Promise<{ category?: string; search?: string }>;
 }) {
+	const { category, search } = await searchParams;
 	return (
 		<section>
-			<CategoriesList
-				category={searchParams.category}
-				search={searchParams.search}
-			/>
+			<CategoriesList category={category} search={search} />
 			<Suspense fallback={<LoadingCards />}>
-				<PropertiesContainer
-					category={searchParams.category}
-					search={searchParams.search}
-				/>
+				<PropertiesContainer category={category} search={search} />
 			</Suspense>
 		</section>
 	);
