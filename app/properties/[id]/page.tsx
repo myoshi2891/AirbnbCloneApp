@@ -18,14 +18,6 @@ import SubmitReview from "@/components/reviews/SubmitReview";
 import PropertyReviews from "@/components/reviews/PropertyReviews";
 import { auth } from "@clerk/nextjs/server";
 
-/**
- * Renders the property details page for the given property id.
- *
- * Fetches property data and renders the full detail view; redirects to "/" if the property cannot be found.
- *
- * @param params - A promise that resolves to route parameters containing the `id` of the property to display.
- * @returns The React element tree for the property's detail page.
- */
 async function PropertyDetailsPage({
 	params,
 }: {

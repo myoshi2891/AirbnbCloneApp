@@ -15,11 +15,6 @@ import SignOutLink from "./SignOutLink";
 import { SignedOut, SignedIn, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 
-/**
- * Render a user action dropdown that adapts its contents to the current authentication state and admin role.
- *
- * @returns A JSX element containing the dropdown menu: when signed out, presents "Login" and "Register" actions; when signed in, presents the configured navigation links (omitting the "admin" link for non-admin users) and a sign-out option.
- */
 async function LinksDropdown() {
 	const { userId } = await auth();
 	const isAdminUser = userId === process.env.ADMIN_USER_ID;

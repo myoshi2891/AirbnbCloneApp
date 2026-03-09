@@ -1,10 +1,10 @@
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-import { type NextRequest, type NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 import db from "@/utils/db";
 import { formatDate } from "@/utils/format";
 
-export const POST = async (req: NextRequest, res: NextResponse) => {
+export const POST = async (req: NextRequest) => {
 	const requestHeaders = new Headers(req.headers);
 	const origin = requestHeaders.get("origin");
 	const { bookingId } = await req.json();
@@ -49,7 +49,7 @@ export const POST = async (req: NextRequest, res: NextResponse) => {
 							name: `${name}`,
 							images: [image],
 							description: `Stay in this wonderful place for ${totalNights} nights, from ${formatDate(
-								checkOut
+								checkIn
 							)}. Enjoy your stay!`,
 						},
 						unit_amount: orderTotal * 100,

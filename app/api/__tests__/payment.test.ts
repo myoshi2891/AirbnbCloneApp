@@ -20,8 +20,11 @@ vi.mock("@/utils/db", () => ({
 }));
 
 // formatDate モック
+const { mockFormatDate } = vi.hoisted(() => ({
+	mockFormatDate: vi.fn(() => "January 1, 2024"),
+}));
 vi.mock("@/utils/format", () => ({
-	formatDate: vi.fn(() => "January 1, 2024"),
+	formatDate: mockFormatDate,
 }));
 
 import db from "@/utils/db";
@@ -52,7 +55,7 @@ describe("POST /api/payment", () => {
 			headers: { origin: "http://localhost:3000" },
 		});
 
-		const response = await POST(req, {} as never);
+		const response = await POST(req);
 		const data = await response.json();
 
 		expect(data.clientSecret).toBe("cs_test_123");
@@ -60,6 +63,43 @@ describe("POST /api/payment", () => {
 			where: { id: "booking-1" },
 			include: { property: { select: { name: true, image: true } } },
 		});
+	});
+
+	it("Stripe session の description に checkIn 日付を使用する", async () => {
+		const checkInDate = new Date("2024-01-01");
+		const checkOutDate = new Date("2024-01-04");
+		const mockBooking = {
+			id: "booking-1",
+			totalNights: 3,
+			orderTotal: 300,
+			checkIn: checkInDate,
+			checkOut: checkOutDate,
+			property: { name: "Beach House", image: "https://example.com/img.jpg" },
+		};
+
+		vi.mocked(db.booking.findUnique).mockResolvedValue(mockBooking as never);
+		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
+
+		const req = new NextRequest("http://localhost:3000/api/payment", {
+			method: "POST",
+			body: JSON.stringify({ bookingId: "booking-1" }),
+			headers: { origin: "http://localhost:3000" },
+		});
+
+		await POST(req);
+
+		// formatDate は checkIn（滞在開始日）で1回だけ呼ばれるべき
+		expect(mockFormatDate).toHaveBeenCalledTimes(1);
+		expect(mockFormatDate).toHaveBeenCalledWith(checkInDate);
+
+		// Stripe session create に渡された description を検証
+		expect(mockCreate).toHaveBeenCalledTimes(1);
+		const createArg = mockCreate.mock.calls[0][0];
+		const description =
+			createArg.line_items[0].price_data.product_data.description;
+		expect(description).toBe(
+			"Stay in this wonderful place for 3 nights, from January 1, 2024. Enjoy your stay!"
+		);
 	});
 
 	it("予約が見つからない場合は 404 を返す", async () => {
@@ -71,7 +111,7 @@ describe("POST /api/payment", () => {
 			headers: { origin: "http://localhost:3000" },
 		});
 
-		const response = await POST(req, {} as never);
+		const response = await POST(req);
 		expect(response.status).toBe(404);
 	});
 });
