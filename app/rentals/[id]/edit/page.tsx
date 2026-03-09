@@ -16,8 +16,25 @@ import { redirect } from "next/navigation";
 import { type Amenity } from "@/utils/amenities";
 import ImageInputContainer from "@/components/form/ImageInputContainer";
 
-async function EditRentalPage({ params }: { params: { id: string } }) {
-	const property = await fetchRentalDetails(params.id);
+/**
+ * Renders the edit form for a rental property identified by route params.
+ *
+ * Fetches property details using the provided `params` id and displays inputs
+ * for updating the property's image, metadata, accommodation details, and amenities.
+ *
+ * @param params - A promise that resolves to the route params object containing `id`
+ * @returns The JSX for the Edit Property page
+ *
+ * @remarks
+ * Redirects to "/" if the property cannot be found.
+ */
+async function EditRentalPage({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
+	const { id } = await params;
+	const property = await fetchRentalDetails(id);
     if (!property) redirect("/");
 	const defaultAmenities: Amenity[] = JSON.parse(property.amenities);
 

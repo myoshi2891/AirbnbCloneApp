@@ -3,22 +3,23 @@ import CategoriesList from "@/components/home/CategoriesList";
 import PropertiesContainer from "@/components/home/PropertiesContainer";
 import { Suspense } from "react";
 
-function HomePage({
+/**
+ * Render the home page section showing categories and property listings filtered by search parameters.
+ *
+ * @param searchParams - A promise that resolves to an object with optional `category` and `search` strings used to filter displayed content.
+ * @returns A React `<section>` element containing `CategoriesList` and a `Suspense`-wrapped `PropertiesContainer` (which uses `LoadingCards` as its fallback).
+ */
+async function HomePage({
 	searchParams,
 }: {
-	searchParams: { category?: string; search?: string };
+	searchParams: Promise<{ category?: string; search?: string }>;
 }) {
+	const { category, search } = await searchParams;
 	return (
 		<section>
-			<CategoriesList
-				category={searchParams.category}
-				search={searchParams.search}
-			/>
+			<CategoriesList category={category} search={search} />
 			<Suspense fallback={<LoadingCards />}>
-				<PropertiesContainer
-					category={searchParams.category}
-					search={searchParams.search}
-				/>
+				<PropertiesContainer category={category} search={search} />
 			</Suspense>
 		</section>
 	);
