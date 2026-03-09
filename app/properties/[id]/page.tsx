@@ -10,30 +10,29 @@ import UserInfo from "@/components/properties/UserInfo";
 import { Separator } from "@/components/ui/separator";
 import Description from "@/components/properties/Description";
 import Amenities from "@/components/properties/Amenities";
-import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+	DynamicMap,
+	DynamicBookingWrapper,
+} from "@/components/properties/DynamicComponents";
 import SubmitReview from "@/components/reviews/SubmitReview";
 import PropertyReviews from "@/components/reviews/PropertyReviews";
 import { auth } from "@clerk/nextjs/server";
 
-const DynamicMap = dynamic(
-	() => import("@/components/properties/PropertyMap"),
-	{
-		ssr: false,
-		loading: () => <Skeleton className="h-[400px] w-full" />,
-	}
-);
-
-const DynamicBookingWrapper = dynamic(
-	() => import("@/components/booking/BookingWrapper"),
-	{
-		ssr: false,
-		loading: () => <Skeleton className="h-[200px] w-full" />,
-	}
-);
-
-async function PropertyDetailsPage({ params }: { params: { id: string } }) {
-	const property = await fetchPropertyDetails(params.id);
+/**
+ * Renders the property details page for the given property id.
+ *
+ * Fetches property data and renders the full detail view; redirects to "/" if the property cannot be found.
+ *
+ * @param params - A promise that resolves to route parameters containing the `id` of the property to display.
+ * @returns The React element tree for the property's detail page.
+ */
+async function PropertyDetailsPage({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
+	const { id } = await params;
+	const property = await fetchPropertyDetails(id);
 
 	if (!property) redirect("/");
 	const { baths, bedrooms, beds, guests } = property;
@@ -41,7 +40,7 @@ async function PropertyDetailsPage({ params }: { params: { id: string } }) {
 	const firstName = property.profile.firstName;
 	const profileImage = property.profile.profileImage;
 
-	const { userId } = auth();
+	const { userId } = await auth();
 	const isNotOwner = property.profile.clerkId !== userId;
 	const reviewDoesNotExist =
 		userId &&
