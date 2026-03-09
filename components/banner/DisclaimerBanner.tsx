@@ -1,3 +1,8 @@
+/**
+ * Renders a full-width, yellow-themed disclaimer banner with centered small text.
+ *
+ * @returns A JSX element containing the disclaimer message about the portfolio project and data handling.
+ */
 function DisclaimerBanner() {
 	return (
 		<div className="w-full bg-yellow-50 border-b border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
