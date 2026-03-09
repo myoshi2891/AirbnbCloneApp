@@ -63,7 +63,7 @@ graph TB
 
 | レイヤー | 技術 | 目的 |
 | ---------- | ------ | ------ |
-| フロントエンドフレームワーク | Next.js 14.2.28 | SSR/SSGを備えたフルスタックReactフレームワーク |
+| フロントエンドフレームワーク | Next.js 15.5.12 | SSR/SSGを備えたフルスタックReactフレームワーク |
 | UIライブラリ | React 18.3.1 | コンポーネントベースのUIライブラリ |
 | UIコンポーネント | Radix UI | アクセシブルで、スタイルなしのコンポーネントプリミティブ |
 | スタイリング | Tailwind CSS | ユーティリティファーストのCSSフレームワーク |
@@ -258,22 +258,17 @@ flowchart LR
 #### Docker設定
 
 ```dockerfile
-# Multi-stage build with Alpine Linux base
-FROM node:18-alpine AS base
+FROM node:20-alpine
+RUN apk add --no-cache openssl tzdata
+ENV TZ=Asia/Tokyo
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
-
-FROM base AS build
+RUN npm config set legacy-peer-deps true
 RUN npm ci
 COPY . .
 RUN npm run build
-
-FROM base AS runtime
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["npm", "run", "start"]
 ```
 
 #### データベース設定
@@ -284,8 +279,8 @@ CMD ["npm", "start"]
 
 #### 依存関係管理
 
-- **開発スクリプト**: `npm run dev`, `npm run build`
-- **データベーススクリプト**: `prisma generate`, `prisma migrate`
+- **開発スクリプト**: `bun run dev`, `bun run build`
+- **データベーススクリプト**: `bun prisma generate`, `bun prisma migrate`
 - **型生成**: TypeScript および Prisma 型生成
 
 ## パフォーマンス最適化

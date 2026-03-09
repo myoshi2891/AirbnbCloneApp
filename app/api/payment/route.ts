@@ -49,7 +49,7 @@ export const POST = async (req: NextRequest) => {
 							name: `${name}`,
 							images: [image],
 							description: `Stay in this wonderful place for ${totalNights} nights, from ${formatDate(
-								checkOut
+								checkIn
 							)}. Enjoy your stay!`,
 						},
 						unit_amount: orderTotal * 100,
