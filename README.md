@@ -280,7 +280,7 @@ CMD ["npm", "run", "start"]
 #### 依存関係管理
 
 - **開発スクリプト**: `bun run dev`, `bun run build`
-- **データベーススクリプト**: `bun prisma generate`, `bun prisma migrate`
+- **データベーススクリプト**: `bun prisma generate`, `bun prisma migrate dev`（開発）, `bun prisma migrate deploy`（本番）
 - **型生成**: TypeScript および Prisma 型生成
 
 ## パフォーマンス最適化

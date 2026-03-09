@@ -88,8 +88,17 @@ describe("POST /api/payment", () => {
 
 		await POST(req);
 
-		// formatDate は checkIn（滞在開始日）で呼ばれるべき
+		// formatDate は checkIn（滞在開始日）で1回だけ呼ばれるべき
+		expect(mockFormatDate).toHaveBeenCalledTimes(1);
 		expect(mockFormatDate).toHaveBeenCalledWith(checkInDate);
+
+		// Stripe session create に渡された description を検証
+		const createArg = mockCreate.mock.calls[0][0];
+		const description =
+			createArg.line_items[0].price_data.product_data.description;
+		expect(description).toBe(
+			"Stay in this wonderful place for 3 nights, from January 1, 2024. Enjoy your stay!"
+		);
 	});
 
 	it("予約が見つからない場合は 404 を返す", async () => {
