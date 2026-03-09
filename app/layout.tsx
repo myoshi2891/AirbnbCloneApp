@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/navbar/NavBar";
+import DisclaimerBanner from "@/components/banner/DisclaimerBanner";
 import Providers from "./providers";
 import { ClerkProvider } from "@clerk/nextjs";
 
@@ -21,6 +22,7 @@ export default function RootLayout({
 		<ClerkProvider>
 			<html lang="en" suppressHydrationWarning>
 				<body className={inter.className}>
+					<DisclaimerBanner />
 					<Providers>
 						<NavBar />
 						<main className="container py-10">{children}</main>
