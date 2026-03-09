@@ -93,6 +93,7 @@ describe("POST /api/payment", () => {
 		expect(mockFormatDate).toHaveBeenCalledWith(checkInDate);
 
 		// Stripe session create に渡された description を検証
+		expect(mockCreate).toHaveBeenCalledTimes(1);
 		const createArg = mockCreate.mock.calls[0][0];
 		const description =
 			createArg.line_items[0].price_data.product_data.description;
