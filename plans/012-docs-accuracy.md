@@ -41,7 +41,7 @@
 | Purpose   | Command              | Expected on success |
 |-----------|----------------------|---------------------|
 | 実装確認  | `ls app/api/webhook/route.ts` | Plan 003 実施済みなら存在 |
-| バージョン確認 | `grep -E '"(next|@clerk/nextjs|@prisma/client|prisma|stripe)"' package.json` | 実値取得 |
+| バージョン確認 | `grep -E '"(next\|@clerk/nextjs\|@prisma/client\|prisma\|stripe)"' package.json` | 実値取得 |
 | Lint      | `bun run lint`       | exit 0（docs のみだが habit として） |
 
 ## Scope
@@ -49,10 +49,11 @@
 **In scope**:
 - `README.md`
 - `CLAUDE.md`
+- `plans/README.md`（本プランの status row 更新のみ）
 
 **Out of scope**:
 - コードの変更一切（webhook 実装は Plan 003、multi-stage 化は将来プラン）
-- `plans/` 配下（本プラン群自身）
+- `plans/README.md` 以外の `plans/` 配下
 - README の構成再編・翻訳 — 事実の修正のみ
 
 ## Git workflow
@@ -108,7 +109,7 @@ README の主要な機能記述（決済・認証・テスト数など）を現�
 - [ ] `grep -n "multi-stage" CLAUDE.md` → 0件
 - [ ] CLAUDE.md / README.md の決済フロー記述が `app/api/` の実装と一致（webhook の有無を正しく反映）
 - [ ] README のバージョン表が `package.json` の現在値と一致
-- [ ] コードファイルの変更ゼロ（`git status` が README.md / CLAUDE.md のみ）
+- [ ] コードファイルの変更ゼロ（`git status` が README.md / CLAUDE.md / plans/README.md のみ）
 
 ## STOP conditions
 

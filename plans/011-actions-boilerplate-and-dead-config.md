@@ -46,7 +46,7 @@ export const updateProfileAction = async (
 ```
 
   同型: `updateProfileImageAction`, `createPropertyAction`, `createReviewAction`, `deleteReviewAction`, `deleteBookingAction`, `deleteRentalAction`, `updatePropertyAction`, `updatePropertyImageAction`, `toggleFavoriteAction` ほか。
-- **重要な例外パターン（壊すと事故る）**: `createPropertyAction`（147-172行）と `createBookingAction`（419-466行）は **`redirect()` を try/catch の外**で呼ぶ。Next.js の `redirect` は例外で実装されているため、catch に入ると握りつぶされる。ヘルパー設計はこの2形（return 型 / redirect 型）を区別する必要がある。
+- **重要な例外パターン（壊すと事故る）**: `createProfileAction`（39-68行）、`createPropertyAction`（147-172行）、`createBookingAction`（419-466行）は **`redirect()` を try/catch の外**で呼ぶ。Next.js の `redirect` は例外で実装されているため、catch に入ると握りつぶされる。ヘルパー設計は return 型とこの3つの redirect 型を区別する必要がある。
 - `prevState: any` が複数のアクションに残っている（リポジトリ規約は `any` 禁止）。
 - `next.config.mjs:15-25` — コメントアウトされた `webpackDevMiddleware` / `reactStrictMode: true` / `env` ブロック。strict mode は現在**無効**（既定値）。
 - `Dockerfile.dev:20-26` — `npm run build` と `CMD` がコメントアウトされ、実行コマンドは `compose.yaml` の `command:` が供給する構成（コメントからは読み取れない）。

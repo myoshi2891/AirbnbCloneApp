@@ -103,7 +103,7 @@ export const uploadImage = async (image: File) => {
 
 **Verify**: `bun run typecheck` → exit 0
 
-### Step 2: MIME allowlist を厳格化
+### Step 2: MIME allowlist と画像コンテンツを検証
 
 `utils/schemas.ts` の `validateFile` を prefix マッチから完全一致 allowlist に変更:
 
@@ -114,6 +114,8 @@ return !file || acceptedFilesTypes.includes(file.type);
 ```
 
 エラーメッセージも "File must be a JPEG, PNG, WebP, or GIF image." に更新。
+
+さらに `utils/schemas.ts` に、先頭バイトを検査する非同期 `validateImageContent(file)` を追加する。JPEG (`FF D8 FF`)、PNG（8-byte signature）、GIF (`GIF87a` / `GIF89a`)、WebP（`RIFF` + offset 8 の `WEBP`）だけを認め、検出した形式が `file.type` と一致しない場合も拒否する。`utils/supabase.ts` の `uploadImage` で、この検証を `supabase.storage.upload` より前に必ず `await` するため、将来の呼び出し元も含めて未検証のバイト列を公開バケットへ保存しない。
 
 **Verify**: `bun run test:run utils/__tests__/schemas.test.ts` → 既存 imageSchema テストの期待値更新が必要なら更新してパス
 
@@ -133,6 +135,8 @@ return !file || acceptedFilesTypes.includes(file.type);
 - `image/svg+xml`（XSS ベクタになりやすい）が **reject** されること
 - `application/pdf` が reject、`image/png` が accept されること
 - 1MB 超が reject（既存テストがあれば重複不要）
+- PNG MIME type だが JPEG ヘッダーのファイル、および PNG MIME type だが任意テキストのファイルが `validateImageContent` で reject されること
+- 正しい PNG ヘッダーの `image/png` ファイルが `validateImageContent` で accept されること
 
 **Verify**: `bun run test:run` → 全パス
 
@@ -146,7 +150,8 @@ Step 4 の3ケース + 既存回帰なし。`new File([...], "name", { type: "..
 - [ ] `grep -n "image.name" utils/supabase.ts` が 0 件（クライアント名不使用）
 - [ ] `grep -n "randomUUID" utils/supabase.ts` がヒット
 - [ ] `grep -n 'startsWith' utils/schemas.ts` の MIME prefix 判定が残っていない
-- [ ] SVG reject のテストが存在しパスする
+- [ ] SVG reject と、MIME type を偽装した無効バイト列 reject のテストが存在しパスする
+- [ ] `uploadImage` が `supabase.storage.upload` の前に `validateImageContent` を await する
 
 ## STOP conditions
 
@@ -156,6 +161,6 @@ Step 4 の3ケース + 既存回帰なし。`new File([...], "name", { type: "..
 
 ## Maintenance notes
 
-- 将来の強化候補: マジックバイト検証（`file.arrayBuffer()` の先頭バイト確認）、画像の再エンコード（sharp）による完全なコンテンツ無害化、古い孤児オブジェクトの清掃ジョブ。
+- 将来の強化候補: 画像の再エンコード（sharp）による完全なコンテンツ無害化、古い孤児オブジェクトの清掃ジョブ。
 - Plan 013（画像ギャラリー）はこの `uploadImage` を複数ファイルでループ利用する予定 — シグネチャを変えた場合は Plan 013 の前提を更新すること。
 - Step 3 の調査結果（キー種別）は `plans/README.md` の該当行に一行で追記する。

@@ -50,7 +50,9 @@
 
 **In scope**:
 - `utils/actions.ts`（一覧フェッチャ5つへの `take`/`skip` 引数追加、`fetchProperties` のキャッシュ化、mutation への `revalidateTag` 追加）
+- `app/page.tsx`（`page` search parameter を `PropertiesContainer` に渡す）
 - `components/home/PropertiesContainer.tsx` / `PropertiesList.tsx`（Load more UI）
+- `utils/schemas.ts` / `utils/__tests__/schemas.test.ts`（page parameter の検証）
 - 各一覧ページ（`app/favorites/page.tsx`, `app/bookings/page.tsx`, `app/reservations/page.tsx`）— 初期ページサイズ適用のみでも可
 - `utils/__tests__/actions.test.ts`（テスト追加）
 
@@ -95,7 +97,7 @@ export const fetchProperties = async ({
 
 ### Step 2: Load more UI
 
-`PropertiesContainer` に `page` を searchParams（例: `?page=2`）で受けて `skip = (page-1) * 24` を渡し、`hasMore` のとき「Load more」リンク（`<Link href={{ query: { ...現行params, page: page+1 } }}>`）を表示する。サーバーコンポーネントのみで完結させ、クライアント状態は持たない（このリポジトリの Server-first 規約に合わせる）。
+`app/page.tsx` で raw `page` search parameter を受けて `PropertiesContainer` に渡す。リポジトリ既存の Zod validation approach に従い、`utils/schemas.ts` に `z.coerce.number().int().min(1).max(100)` を用いる page schema を追加する。`PropertiesContainer` は `safeParse` し、失敗時（空、非数、少数、0以下、100超）は page 1 にフォールバックしてから `skip = (sanitizedPage - 1) * 24` を計算する。これにより最大 skip は 2,376 に制限される。`hasMore` のとき「Load more」リンク（`<Link href={{ query: { ...現行params, page: sanitizedPage + 1 } }}>`）を表示する。サーバーコンポーネントのみで完結させ、クライアント状態は持たない（このリポジトリの Server-first 規約に合わせる）。
 
 注記: 「追記型の無限スクロール」はクライアント化が必要になるため採らない。ページ置き換え型で十分。
 
@@ -123,6 +125,7 @@ const fetchPropertiesCached = unstable_cache(
 
 - `fetchProperties`: `take+1` 件返るモックで `hasMore: true` と `properties.length === take` になること / ちょうど `take` 件で `hasMore: false`
 - mutation テスト（Plan 005 のもの）に `revalidateTag` 呼び出しのアサーション追加
+- page schema: `1` と `100` を accept、`0`、負数、少数、非数、`101` を reject すること
 
 **Verify**: `bun run test:run` → 全パス
 
@@ -136,6 +139,7 @@ Step 4 の3ケース + 既存回帰なし。`unstable_cache` はテストでは�
 - [ ] `utils/actions.ts` の一覧フェッチャ5つすべてに `take` が存在（`grep -n "take" utils/actions.ts`）
 - [ ] `grep -n "unstable_cache" utils/actions.ts` がヒットし、対象が `fetchProperties` のみ
 - [ ] `grep -c "revalidateTag" utils/actions.ts` ≥ 4
+- [ ] page parameter が 1–100 の整数以外なら page 1 へフォールバックし、skip が 2,376 を超えないテストがパスする
 - [ ] ホームの Load more が dev で動作（手動確認記録）
 
 ## STOP conditions
