@@ -36,7 +36,7 @@ export const imageSchema = z.object({
 const imageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function validateImageContent(file: File): Promise<void> {
-	const bytes = new Uint8Array(await file.arrayBuffer());
+	const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
 	const imageType =
 		bytes.length >= 3 &&
 		bytes[0] === 0xff &&

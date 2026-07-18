@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
 	profileSchema,
 	propertySchema,
@@ -183,6 +183,27 @@ describe("validateImageContent", () => {
 		await expect(validateImageContent(file)).rejects.toThrow(
 			"File content does not match the declared image type"
 		);
+	});
+
+	it("先頭 12 バイトだけを読み込む", async () => {
+		const header = new Uint8Array([
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		]);
+		const slicedArrayBuffer = vi.fn(async () => header.buffer);
+		const slice = vi.fn(() => ({ arrayBuffer: slicedArrayBuffer }));
+		const fileArrayBuffer = vi.fn(() => {
+			throw new Error("The full file must not be read");
+		});
+		const file = {
+			type: "image/png",
+			slice,
+			arrayBuffer: fileArrayBuffer,
+		} as unknown as File;
+
+		await expect(validateImageContent(file)).resolves.toBeUndefined();
+
+		expect(slice).toHaveBeenCalledWith(0, 12);
+		expect(fileArrayBuffer).not.toHaveBeenCalled();
 	});
 });
 
