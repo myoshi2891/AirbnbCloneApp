@@ -1,6 +1,7 @@
 "use server";
 
 import {
+	createBookingSchema,
 	createReviewSchema,
 	imageSchema,
 	profileSchema,
@@ -422,31 +423,34 @@ export const createBookingAction = async (prevState: {
 	checkOut: Date;
 }) => {
 	const user = await getAuthUser();
-	await db.booking.deleteMany({
-		where: {
-			profileId: user.id,
-			paymentStatus: false,
-		},
-	});
-
 	let bookingId: null | string = null;
 
-	const { propertyId, checkIn, checkOut } = prevState;
-	const property = await db.property.findUnique({
-		where: { id: propertyId },
-		select: { price: true },
-	});
-	if (!property) {
-		return { message: "Property not found..." };
-	}
-
-	const { orderTotal, totalNights } = calculateTotals({
-		checkIn,
-		checkOut,
-		price: property.price,
-	});
-
 	try {
+		const { propertyId, checkIn, checkOut } = validateWithZodSchema(
+			createBookingSchema,
+			prevState
+		);
+		await db.booking.deleteMany({
+			where: {
+				profileId: user.id,
+				paymentStatus: false,
+			},
+		});
+
+		const property = await db.property.findUnique({
+			where: { id: propertyId },
+			select: { price: true },
+		});
+		if (!property) {
+			return { message: "Property not found..." };
+		}
+
+		const { orderTotal, totalNights } = calculateTotals({
+			checkIn,
+			checkOut,
+			price: property.price,
+		});
+
 		const booking = await db.booking.create({
 			data: {
 				checkIn,
