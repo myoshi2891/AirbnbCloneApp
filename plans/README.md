@@ -14,7 +14,7 @@ effort=standard のためホットスポット重点であり、`components/` �
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | 検証基盤（typecheck・CI・.env.example） | P1 | S | — | TODO |
+| 001 | 検証基盤（typecheck・CI・.env.example） | P1 | S | — | DONE |
 | 002 | 決済 API 所有者チェック + 予約入力検証 | P1 | S | 001 | TODO |
 | 003 | 署名検証付き Stripe Webhook | P1 | M | 001 | TODO |
 | 004 | 重複予約のサーバー側防止 | P1 | M | 002 | TODO |
