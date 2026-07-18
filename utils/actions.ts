@@ -452,18 +452,44 @@ export const createBookingAction = async (prevState: {
 			price: property.price,
 		});
 
-		const booking = await db.booking.create({
-			data: {
-				checkIn,
-				checkOut,
-				propertyId,
-				profileId: user.id,
-				orderTotal,
-				totalNights,
+		const booking = await db.$transaction(
+			async (tx) => {
+				const conflict = await tx.booking.findFirst({
+					where: {
+						propertyId,
+						paymentStatus: true,
+						checkIn: { lt: checkOut },
+						checkOut: { gt: checkIn },
+					},
+					select: { id: true },
+				});
+				if (conflict) {
+					throw new Error("Selected dates are no longer available");
+				}
+
+				return tx.booking.create({
+					data: {
+						checkIn,
+						checkOut,
+						propertyId,
+						profileId: user.id,
+						orderTotal,
+						totalNights,
+					},
+				});
 			},
-		});
+			{ isolationLevel: "Serializable" }
+		);
 		bookingId = booking.id;
 	} catch (error) {
+		if (
+			typeof error === "object" &&
+			error !== null &&
+			"code" in error &&
+			error.code === "P2034"
+		) {
+			return { message: "Please try again" };
+		}
 		return renderError(error);
 	}
 
