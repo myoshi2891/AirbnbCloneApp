@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	profileSchema,
 	propertySchema,
+	createBookingSchema,
 	createReviewSchema,
 	validateWithZodSchema,
 } from "../schemas";
@@ -102,6 +103,38 @@ describe("createReviewSchema", () => {
 			rating: 4,
 			comment: "Good",
 		});
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("createBookingSchema", () => {
+	it("有効な予約入力を受け付ける", () => {
+		// Arrange
+		const booking = {
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: new Date("2030-06-20"),
+			checkOut: new Date("2030-06-25"),
+		};
+
+		// Act
+		const result = createBookingSchema.safeParse(booking);
+
+		// Assert
+		expect(result.success).toBe(true);
+	});
+
+	it("checkOut が checkIn より前の予約入力を拒否する", () => {
+		// Arrange
+		const booking = {
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: new Date("2030-06-25"),
+			checkOut: new Date("2030-06-20"),
+		};
+
+		// Act
+		const result = createBookingSchema.safeParse(booking);
+
+		// Assert
 		expect(result.success).toBe(false);
 	});
 });
