@@ -1,16 +1,23 @@
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+import { auth } from "@clerk/nextjs/server";
 import { type NextRequest } from "next/server";
 import db from "@/utils/db";
 import { formatDate } from "@/utils/format";
 
 export const POST = async (req: NextRequest) => {
+	const { userId } = await auth();
+	if (!userId) {
+		return Response.json(null, { status: 401, statusText: "Unauthorized" });
+	}
+
 	const requestHeaders = new Headers(req.headers);
 	const origin = requestHeaders.get("origin");
 	const { bookingId } = await req.json();
-	const booking = await db.booking.findUnique({
+	const booking = await db.booking.findFirst({
 		where: {
 			id: bookingId,
+			profileId: userId,
 		},
 		include: {
 			property: {
