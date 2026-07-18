@@ -64,13 +64,14 @@ describe("createBookingAction", () => {
 			callback({
 				booking: {
 					findFirst: mockBookingFindFirst,
+					deleteMany: mockBookingDeleteMany,
 					create: mockBookingCreate,
 				},
 			})
 		);
 	});
 
-	it("支払済み予約と重複すると予約を作成せず空きなしを返す", async () => {
+	it("既存予約と重複すると予約を作成せず空きなしを返す", async () => {
 		// Arrange
 		mockBookingFindFirst.mockResolvedValue({ id: "paid-booking-1" });
 
@@ -80,9 +81,10 @@ describe("createBookingAction", () => {
 		// Assert
 		expect(result.message).toContain("no longer available");
 		expect(mockBookingCreate).not.toHaveBeenCalled();
+		expect(mockBookingDeleteMany).not.toHaveBeenCalled();
 	});
 
-	it("支払済み予約と重複しなければ予約を作成する", async () => {
+	it("既存予約と重複しなければ予約を作成する", async () => {
 		// Arrange
 		mockBookingFindFirst.mockResolvedValue(null);
 		mockBookingCreate.mockResolvedValue({ id: "booking-1" });
@@ -115,7 +117,6 @@ describe("createBookingAction", () => {
 		expect(mockBookingFindFirst).toHaveBeenCalledWith({
 			where: {
 				propertyId: bookingInput.propertyId,
-				paymentStatus: true,
 				checkIn: { lt: bookingInput.checkOut },
 				checkOut: { gt: bookingInput.checkIn },
 			},
@@ -124,5 +125,110 @@ describe("createBookingAction", () => {
 		expect(mockTransaction).toHaveBeenCalledWith(expect.any(Function), {
 			isolationLevel: "Serializable",
 		});
+		expect(mockBookingDeleteMany).toHaveBeenCalledWith({
+			where: {
+				profileId: "user-1",
+				paymentStatus: false,
+			},
+		});
 	});
 });
+
+const databaseIt =
+	process.env.RUN_DATABASE_TESTS === "true" && process.env.TEST_DATABASE_URL
+		? it
+		: it.skip;
+
+databaseIt(
+	"実DBで同一日程の同時予約は最大1件だけ成功する",
+	async () => {
+		const previousDatabaseUrl = process.env.DATABASE_URL;
+		process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+		const fixtureId = crypto.randomUUID();
+		const profileId = `booking-overlap-${fixtureId}`;
+		vi.resetModules();
+		vi.doUnmock("@/utils/db");
+		vi.doMock("@clerk/nextjs/server", () => ({
+			currentUser: vi.fn(async () => ({
+				id: profileId,
+				privateMetadata: { hasProfile: true },
+			})),
+		}));
+		vi.doMock("next/navigation", () => ({
+			redirect: () => {
+				throw new Error("NEXT_REDIRECT");
+			},
+		}));
+		vi.doMock("@/utils/supabase", () => ({ uploadImage: vi.fn() }));
+
+		const { default: actualDb } = await import("@/utils/db");
+		const { createBookingAction: createActualBooking } = await import(
+			"@/utils/actions"
+		);
+		let propertyId: string | undefined;
+
+		try {
+			await actualDb.profile.create({
+				data: {
+					clerkId: profileId,
+					firstName: "Booking",
+					lastName: "Overlap",
+					username: `overlap-${fixtureId}`,
+					email: `${fixtureId}@example.test`,
+					profileImage: "https://example.test/profile.png",
+				},
+			});
+			const property = await actualDb.property.create({
+				data: {
+					name: "Concurrent booking fixture",
+					tagline: "Fixture property for transaction testing",
+					category: "test",
+					image: "https://example.test/property.png",
+					country: "JP",
+					description: "A property used only to verify concurrent booking transactions.",
+					price: 100,
+					guests: 1,
+					bedrooms: 1,
+					beds: 1,
+					baths: 1,
+					amenities: "[]",
+					profileId,
+				},
+			});
+			propertyId = property.id;
+
+			const results = await Promise.allSettled(
+				Array.from({ length: 2 }, () =>
+					createActualBooking({
+						propertyId: property.id,
+						checkIn: new Date("2030-06-20"),
+						checkOut: new Date("2030-06-25"),
+					})
+				)
+			);
+			const successfulBookings = results.filter(
+				(result) =>
+					result.status === "rejected" &&
+					result.reason instanceof Error &&
+					result.reason.message === "NEXT_REDIRECT"
+			);
+
+			expect(successfulBookings).toHaveLength(1);
+			expect(
+				await actualDb.booking.count({ where: { propertyId: property.id } })
+			).toBe(1);
+		} finally {
+			if (propertyId) {
+				await actualDb.property.delete({ where: { id: propertyId } });
+			}
+			await actualDb.profile.delete({ where: { clerkId: profileId } }).catch(() => undefined);
+			await actualDb.$disconnect();
+			if (previousDatabaseUrl === undefined) {
+				delete process.env.DATABASE_URL;
+			} else {
+				process.env.DATABASE_URL = previousDatabaseUrl;
+			}
+		}
+	},
+	30_000
+);

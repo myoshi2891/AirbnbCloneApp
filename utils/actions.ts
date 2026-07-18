@@ -431,13 +431,6 @@ export const createBookingAction = async (prevState: {
 			createBookingSchema,
 			prevState
 		);
-		await db.booking.deleteMany({
-			where: {
-				profileId: user.id,
-				paymentStatus: false,
-			},
-		});
-
 		const property = await db.property.findUnique({
 			where: { id: propertyId },
 			select: { price: true },
@@ -457,7 +450,6 @@ export const createBookingAction = async (prevState: {
 				const conflict = await tx.booking.findFirst({
 					where: {
 						propertyId,
-						paymentStatus: true,
 						checkIn: { lt: checkOut },
 						checkOut: { gt: checkIn },
 					},
@@ -466,6 +458,13 @@ export const createBookingAction = async (prevState: {
 				if (conflict) {
 					throw new Error("Selected dates are no longer available");
 				}
+
+				await tx.booking.deleteMany({
+					where: {
+						profileId: user.id,
+						paymentStatus: false,
+					},
+				});
 
 				return tx.booking.create({
 					data: {
