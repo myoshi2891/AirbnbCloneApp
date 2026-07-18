@@ -67,6 +67,7 @@ describe("verification baseline", () => {
 			NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '"pk_test_..."',
 			CLERK_SECRET_KEY: '"sk_test_..."',
 			NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: '"pk_test_..."',
+			NEXT_PUBLIC_WEBSITE_URL: '"https://your-app.example.com"',
 			STRIPE_SECRET_KEY: '"sk_test_..."',
 			STRIPE_WEBHOOK_SECRET: '"whsec_..."',
 			SUPABASE_URL: '"https://your-project.supabase.co"',

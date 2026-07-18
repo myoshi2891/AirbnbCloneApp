@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { validateImageContent } from "./schemas";
 
 const bucket = "home-away-app";
 
@@ -8,6 +9,7 @@ const key = process.env.SUPABASE_KEY as string;
 const supabase = createClient(url, key);
 
 export const uploadImage = async (image: File) => {
+	await validateImageContent(image);
 	const timestamp = Date.now();
 	const newName = `${timestamp}-${image.name}`;
 	const { data } = await supabase.storage

@@ -11,8 +11,14 @@ export const POST = async (req: NextRequest) => {
 		return Response.json(null, { status: 401, statusText: "Unauthorized" });
 	}
 
-	const requestHeaders = new Headers(req.headers);
-	const origin = requestHeaders.get("origin");
+	const applicationUrl = process.env.NEXT_PUBLIC_WEBSITE_URL;
+	if (!applicationUrl) {
+		return Response.json(null, {
+			status: 500,
+			statusText: "Internal Server Error",
+		});
+	}
+
 	const { bookingId } = await req.json();
 	const booking = await db.booking.findFirst({
 		where: {
@@ -29,6 +35,12 @@ export const POST = async (req: NextRequest) => {
 		},
 	});
 	if (!booking) {
+		return Response.json(null, {
+			status: 404,
+			statusText: "Not Found",
+		});
+	}
+	if (booking.paymentStatus) {
 		return Response.json(null, {
 			status: 404,
 			statusText: "Not Found",
@@ -64,7 +76,7 @@ export const POST = async (req: NextRequest) => {
 				},
 			],
 			mode: "payment",
-			return_url: `${origin}/api/confirm?session_id={CHECKOUT_SESSION_ID}`,
+			return_url: `${applicationUrl.replace(/\/$/, "")}/api/confirm?session_id={CHECKOUT_SESSION_ID}`,
 		});
 		return Response.json({ clientSecret: session.client_secret });
 	} catch (error) {

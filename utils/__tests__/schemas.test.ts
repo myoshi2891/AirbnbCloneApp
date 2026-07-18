@@ -4,6 +4,7 @@ import {
 	propertySchema,
 	createBookingSchema,
 	createReviewSchema,
+	validateImageContent,
 	validateWithZodSchema,
 } from "../schemas";
 
@@ -137,4 +138,65 @@ describe("createBookingSchema", () => {
 		// Assert
 		expect(result.success).toBe(false);
 	});
+
+	it("事業タイムゾーンで過去の checkIn を拒否する", () => {
+		const yesterday = getBusinessDateOffset(-1);
+		const result = createBookingSchema.safeParse({
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: yesterday,
+			checkOut: getBusinessDateOffset(1),
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it("事業タイムゾーンで当日の checkIn を受け付ける", () => {
+		const today = getBusinessDateOffset(0);
+		const result = createBookingSchema.safeParse({
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: today,
+			checkOut: getBusinessDateOffset(1),
+		});
+
+		expect(result.success).toBe(true);
+	});
 });
+
+describe("validateImageContent", () => {
+	it("declared MIME type と一致する PNG コンテンツを受け付ける", async () => {
+		const file = new File(
+			[new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+			"image.png",
+			{ type: "image/png" }
+		);
+
+		await expect(validateImageContent(file)).resolves.toBeUndefined();
+	});
+
+	it("偽装された MIME type の画像コンテンツを拒否する", async () => {
+		const file = new File(
+			[new Uint8Array([0xff, 0xd8, 0xff])],
+			"image.png",
+			{ type: "image/png" }
+		);
+
+		await expect(validateImageContent(file)).rejects.toThrow(
+			"File content does not match the declared image type"
+		);
+	});
+});
+
+function getBusinessDateOffset(offset: number) {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: "Asia/Tokyo",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(new Date());
+	const part = (type: Intl.DateTimeFormatPartTypes) =>
+		Number(parts.find((item) => item.type === type)?.value);
+
+	return new Date(
+		Date.UTC(part("year"), part("month") - 1, part("day") + offset)
+	);
+}

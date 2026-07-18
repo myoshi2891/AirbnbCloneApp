@@ -42,6 +42,7 @@ describe("POST /api/payment", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockAuth.mockResolvedValue({ userId: "user-1" });
+		process.env.NEXT_PUBLIC_WEBSITE_URL = "https://app.example.com";
 	});
 
 	it("正常なリクエストで clientSecret を返す", async () => {
@@ -60,7 +61,7 @@ describe("POST /api/payment", () => {
 		const req = new NextRequest("http://localhost:3000/api/payment", {
 			method: "POST",
 			body: JSON.stringify({ bookingId: "booking-1" }),
-			headers: { origin: "http://localhost:3000" },
+			headers: { origin: "https://attacker.example" },
 		});
 
 		const response = await POST(req);
@@ -98,7 +99,7 @@ describe("POST /api/payment", () => {
 			expect.objectContaining({
 				ui_mode: "embedded",
 				return_url:
-					"http://localhost:3000/api/confirm?session_id={CHECKOUT_SESSION_ID}",
+					"https://app.example.com/api/confirm?session_id={CHECKOUT_SESSION_ID}",
 			})
 		);
 		expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("success_url");
@@ -152,6 +153,23 @@ describe("POST /api/payment", () => {
 
 		const response = await POST(req);
 		expect(response.status).toBe(404);
+	});
+
+	it("支払い済み予約には Checkout セッションを作成しない", async () => {
+		vi.mocked(db.booking.findFirst).mockResolvedValue({
+			id: "booking-1",
+			paymentStatus: true,
+		} as never);
+
+		const req = new NextRequest("http://localhost:3000/api/payment", {
+			method: "POST",
+			body: JSON.stringify({ bookingId: "booking-1" }),
+		});
+
+		const response = await POST(req);
+
+		expect(response.status).toBe(404);
+		expect(mockCreate).not.toHaveBeenCalled();
 	});
 
 	it("未認証の場合は 401 を返す", async () => {
