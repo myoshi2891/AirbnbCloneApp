@@ -10,11 +10,18 @@ vi.mock("stripe", () => ({
 	},
 }));
 
+const { mockAuth } = vi.hoisted(() => ({
+	mockAuth: vi.fn(),
+}));
+vi.mock("@clerk/nextjs/server", () => ({
+	auth: mockAuth,
+}));
+
 // Prisma モック
 vi.mock("@/utils/db", () => ({
 	default: {
 		booking: {
-			findUnique: vi.fn(),
+			findFirst: vi.fn(),
 		},
 	},
 }));
@@ -34,6 +41,7 @@ import { NextRequest } from "next/server";
 describe("POST /api/payment", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockAuth.mockResolvedValue({ userId: "user-1" });
 	});
 
 	it("正常なリクエストで clientSecret を返す", async () => {
@@ -46,7 +54,7 @@ describe("POST /api/payment", () => {
 			property: { name: "Beach House", image: "https://example.com/img.jpg" },
 		};
 
-		vi.mocked(db.booking.findUnique).mockResolvedValue(mockBooking as never);
+		vi.mocked(db.booking.findFirst).mockResolvedValue(mockBooking as never);
 		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
 
 		const req = new NextRequest("http://localhost:3000/api/payment", {
@@ -59,8 +67,8 @@ describe("POST /api/payment", () => {
 		const data = await response.json();
 
 		expect(data.clientSecret).toBe("cs_test_123");
-		expect(db.booking.findUnique).toHaveBeenCalledWith({
-			where: { id: "booking-1" },
+		expect(db.booking.findFirst).toHaveBeenCalledWith({
+			where: { id: "booking-1", profileId: "user-1" },
 			include: { property: { select: { name: true, image: true } } },
 		});
 	});
@@ -77,7 +85,7 @@ describe("POST /api/payment", () => {
 			property: { name: "Beach House", image: "https://example.com/img.jpg" },
 		};
 
-		vi.mocked(db.booking.findUnique).mockResolvedValue(mockBooking as never);
+		vi.mocked(db.booking.findFirst).mockResolvedValue(mockBooking as never);
 		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
 
 		const req = new NextRequest("http://localhost:3000/api/payment", {
@@ -103,7 +111,7 @@ describe("POST /api/payment", () => {
 	});
 
 	it("予約が見つからない場合は 404 を返す", async () => {
-		vi.mocked(db.booking.findUnique).mockResolvedValue(null);
+		vi.mocked(db.booking.findFirst).mockResolvedValue(null);
 
 		const req = new NextRequest("http://localhost:3000/api/payment", {
 			method: "POST",
@@ -113,5 +121,41 @@ describe("POST /api/payment", () => {
 
 		const response = await POST(req);
 		expect(response.status).toBe(404);
+	});
+
+	it("未認証の場合は 401 を返す", async () => {
+		// Arrange
+		mockAuth.mockResolvedValue({ userId: null });
+		const req = new NextRequest("http://localhost:3000/api/payment", {
+			method: "POST",
+			body: JSON.stringify({ bookingId: "booking-1" }),
+		});
+
+		// Act
+		const response = await POST(req);
+
+		// Assert
+		expect(response.status).toBe(401);
+		expect(db.booking.findFirst).not.toHaveBeenCalled();
+	});
+
+	it("他人の予約の場合は 404 を返す", async () => {
+		// Arrange
+		vi.mocked(db.booking.findFirst).mockResolvedValue(null);
+		const req = new NextRequest("http://localhost:3000/api/payment", {
+			method: "POST",
+			body: JSON.stringify({ bookingId: "another-users-booking" }),
+			headers: { origin: "http://localhost:3000" },
+		});
+
+		// Act
+		const response = await POST(req);
+
+		// Assert
+		expect(response.status).toBe(404);
+		expect(db.booking.findFirst).toHaveBeenCalledWith({
+			where: { id: "another-users-booking", profileId: "user-1" },
+			include: { property: { select: { name: true, image: true } } },
+		});
 	});
 });
