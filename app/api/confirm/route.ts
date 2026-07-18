@@ -8,6 +8,7 @@ import db from "@/utils/db";
 export const GET = async (req: NextRequest) => {
 	const { searchParams } = new URL(req.url);
 	const session_id = searchParams.get("session_id") as string;
+	let redirectPath = "/bookings";
 	try {
 		const session = await stripe.checkout.sessions.retrieve(session_id);
 		const bookingId = session.metadata?.bookingId;
@@ -15,10 +16,14 @@ export const GET = async (req: NextRequest) => {
 			throw new Error("Something went wrong..");
 		}
 
-		await db.booking.update({
-			where: { id: bookingId },
-			data: { paymentStatus: true },
-		});
+		if (session.payment_status === "paid") {
+			await db.booking.updateMany({
+				where: { id: bookingId, paymentStatus: false },
+				data: { paymentStatus: true },
+			});
+		} else {
+			redirectPath = `/checkout/pending?session_id=${encodeURIComponent(session_id)}`;
+		}
 	} catch (error) {
 		console.log(error);
 		return NextResponse.json(null, {
@@ -26,5 +31,5 @@ export const GET = async (req: NextRequest) => {
 			statusText: "Internal Server Error",
 		});
 	}
-	redirect("/bookings");
+	redirect(redirectPath);
 };

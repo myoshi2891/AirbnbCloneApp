@@ -96,3 +96,13 @@ export const createReviewSchema = z.object({
 	rating: z.coerce.number().int().min(1).max(5),
 	comment: z.string().min(10).max(1000),
 });
+
+export const createBookingSchema = z
+	.object({
+		propertyId: z.string().uuid(),
+		checkIn: z.coerce.date(),
+		checkOut: z.coerce.date(),
+	})
+	.refine((data) => data.checkOut > data.checkIn, {
+		message: "checkOut must be after checkIn",
+	});
