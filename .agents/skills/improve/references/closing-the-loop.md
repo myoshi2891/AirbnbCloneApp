@@ -91,7 +91,19 @@ Modifier on any planning invocation (`/improve --issues`, `/improve security --i
 1. Preflight: `gh auth status` succeeds and the repo has a GitHub remote. If either fails, write the plan files as normal and say why issues were skipped.
 2. Visibility check: `gh repo view --json visibility`. If the repo is **public**, warn the user that issues are publicly visible and get explicit confirmation before publishing any plan that describes a security vulnerability, credential location, or other sensitive finding.
 3. Show the list of titles about to become issues; confirm once if interactive.
-4. Per plan: set `plan_path` to the actual plan file and `category` to its Category value, then run `gh issue create --title "<plan title>" --body-file "$plan_path" --label improve --label "$category"`. Labels: `improve` plus the category — apply only if the labels exist or can be created without erroring; skip labels rather than fail.
+4. Per plan: set `plan_path` to the actual plan file, `category` to its Category value, and `title` to the plan title. Build label arguments independently so a missing or uncreatable label never blocks issue creation:
+
+   ```bash
+   label_args=()
+   for label in improve "$category"; do
+     if gh label list --search "$label" --limit 100 --json name --jq '.[].name' | rg -Fxq -- "$label" \
+       || gh label create "$label" >/dev/null 2>&1; then
+       label_args+=(--label "$label")
+     fi
+   done
+
+   gh issue create --title "$title" --body-file "$plan_path" "${label_args[@]}"
+   ```
 5. Record each issue URL in the plan's Status block (`- **Issue**: <url>`) and the index.
 
 The plan file remains the source of truth; the issue is distribution. The self-containment rule pays off here — the issue body needs no edits to make sense to whoever (or whatever) picks it up.

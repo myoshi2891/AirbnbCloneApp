@@ -41,7 +41,7 @@
 | Purpose   | Command              | Expected on success |
 |-----------|----------------------|---------------------|
 | 実装確認  | `ls app/api/webhook/route.ts` | Plan 003 実施済みなら存在 |
-| バージョン確認 | `grep -E '"(next|@clerk/nextjs|@prisma/client|prisma|stripe)"' package.json` | 実値取得 |
+| バージョン確認 | `grep -E -e '"next"' -e '"@clerk/nextjs"' -e '"@prisma/client"' -e '"prisma"' -e '"stripe"' package.json` | 実値取得 |
 | Lint      | `bun run lint`       | exit 0（docs のみだが habit として） |
 
 ## Scope
