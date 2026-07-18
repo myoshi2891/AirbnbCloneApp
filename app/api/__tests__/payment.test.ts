@@ -73,6 +73,37 @@ describe("POST /api/payment", () => {
 		});
 	});
 
+	it("Embedded Checkout 用の return_url を設定する", async () => {
+		const mockBooking = {
+			id: "booking-1",
+			totalNights: 3,
+			orderTotal: 300,
+			checkIn: new Date("2024-01-01"),
+			checkOut: new Date("2024-01-04"),
+			property: { name: "Beach House", image: "https://example.com/img.jpg" },
+		};
+
+		vi.mocked(db.booking.findFirst).mockResolvedValue(mockBooking as never);
+		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
+
+		const req = new NextRequest("http://localhost:3000/api/payment", {
+			method: "POST",
+			body: JSON.stringify({ bookingId: "booking-1" }),
+			headers: { origin: "http://localhost:3000" },
+		});
+
+		await POST(req);
+
+		expect(mockCreate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				ui_mode: "embedded",
+				return_url:
+					"http://localhost:3000/api/confirm?session_id={CHECKOUT_SESSION_ID}",
+			})
+		);
+		expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("success_url");
+	});
+
 	it("Stripe session の description に checkIn 日付を使用する", async () => {
 		const checkInDate = new Date("2024-01-01");
 		const checkOutDate = new Date("2024-01-04");
