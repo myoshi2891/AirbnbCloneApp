@@ -71,16 +71,18 @@ model Review {
 }
 
 model Booking {
-  id            String   @id @default(uuid())
-  profileId     String
-  propertyId    String 
-  orderTotal    Int
-  totalNights   Int
-  checkIn       DateTime
-  checkOut      DateTime
-  paymentStatus Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  profile       Profile  @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
-  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id                        String   @id @default(uuid())
+  profileId                 String
+  propertyId                String
+  orderTotal                Int
+  totalNights               Int
+  checkIn                   DateTime
+  checkOut                  DateTime
+  paymentStatus             Boolean  @default(false)
+  checkoutSessionId        String?
+  checkoutSessionExpiresAt DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  profile                   Profile  @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
+  property                  Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }

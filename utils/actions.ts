@@ -445,6 +445,7 @@ export const createBookingAction = async (prevState: {
 			price: property.price,
 		});
 
+		const activeCheckoutSessionCutoff = new Date();
 		const booking = await db.$transaction(
 			async (tx) => {
 				const conflict = await tx.booking.findFirst({
@@ -463,6 +464,12 @@ export const createBookingAction = async (prevState: {
 					where: {
 						profileId: user.id,
 						paymentStatus: false,
+						NOT: {
+							checkoutSessionId: { not: null },
+							checkoutSessionExpiresAt: {
+								gt: activeCheckoutSessionCutoff,
+							},
+						},
 					},
 				});
 

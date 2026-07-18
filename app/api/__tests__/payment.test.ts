@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Stripe モック（vi.hoisted でホイスト対応）
-const { mockCreate } = vi.hoisted(() => ({
+const { mockCreate, mockRetrieve } = vi.hoisted(() => ({
 	mockCreate: vi.fn(),
+	mockRetrieve: vi.fn(),
 }));
 vi.mock("stripe", () => ({
 	default: class StripeMock {
-		checkout = { sessions: { create: mockCreate } };
+		checkout = { sessions: { create: mockCreate, retrieve: mockRetrieve } };
 	},
 }));
 
@@ -22,6 +23,7 @@ vi.mock("@/utils/db", () => ({
 	default: {
 		booking: {
 			findFirst: vi.fn(),
+			update: vi.fn(),
 		},
 	},
 }));
@@ -43,6 +45,11 @@ describe("POST /api/payment", () => {
 		vi.clearAllMocks();
 		mockAuth.mockResolvedValue({ userId: "user-1" });
 		process.env.NEXT_PUBLIC_WEBSITE_URL = "https://app.example.com";
+		mockCreate.mockResolvedValue({
+			id: "cs_test_123",
+			client_secret: "cs_test_123",
+			expires_at: 1_800_000_000,
+		});
 	});
 
 	it("正常なリクエストで clientSecret を返す", async () => {
@@ -56,8 +63,6 @@ describe("POST /api/payment", () => {
 		};
 
 		vi.mocked(db.booking.findFirst).mockResolvedValue(mockBooking as never);
-		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
-
 		const req = new NextRequest("http://localhost:3000/api/payment", {
 			method: "POST",
 			body: JSON.stringify({ bookingId: "booking-1" }),
@@ -72,6 +77,16 @@ describe("POST /api/payment", () => {
 			where: { id: "booking-1", profileId: "user-1" },
 			include: { property: { select: { name: true, image: true } } },
 		});
+		expect(db.booking.update).toHaveBeenCalledWith({
+			where: { id: "booking-1" },
+			data: {
+				checkoutSessionId: "cs_test_123",
+				checkoutSessionExpiresAt: new Date(1_800_000_000 * 1000),
+			},
+		});
+		expect(mockCreate).toHaveBeenCalledWith(expect.any(Object), {
+			idempotencyKey: "checkout-session-booking-1-initial",
+		});
 	});
 
 	it("Embedded Checkout 用の return_url を設定する", async () => {
@@ -85,8 +100,6 @@ describe("POST /api/payment", () => {
 		};
 
 		vi.mocked(db.booking.findFirst).mockResolvedValue(mockBooking as never);
-		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
-
 		const req = new NextRequest("http://localhost:3000/api/payment", {
 			method: "POST",
 			body: JSON.stringify({ bookingId: "booking-1" }),
@@ -100,7 +113,8 @@ describe("POST /api/payment", () => {
 				ui_mode: "embedded",
 				return_url:
 					"https://app.example.com/api/confirm?session_id={CHECKOUT_SESSION_ID}",
-			})
+			}),
+			{ idempotencyKey: "checkout-session-booking-1-initial" }
 		);
 		expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("success_url");
 	});
@@ -118,8 +132,6 @@ describe("POST /api/payment", () => {
 		};
 
 		vi.mocked(db.booking.findFirst).mockResolvedValue(mockBooking as never);
-		mockCreate.mockResolvedValue({ client_secret: "cs_test_123" });
-
 		const req = new NextRequest("http://localhost:3000/api/payment", {
 			method: "POST",
 			body: JSON.stringify({ bookingId: "booking-1" }),
@@ -140,6 +152,74 @@ describe("POST /api/payment", () => {
 		expect(description).toBe(
 			"Stay in this wonderful place for 3 nights, from January 1, 2024. Enjoy your stay!"
 		);
+	});
+
+	it("有効な保存済み Session を再利用する", async () => {
+		const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+		vi.mocked(db.booking.findFirst).mockResolvedValue({
+			id: "booking-1",
+			paymentStatus: false,
+			checkoutSessionId: "cs_existing",
+			checkoutSessionExpiresAt: expiresAt,
+			property: { name: "Beach House", image: "https://example.com/img.jpg" },
+		} as never);
+		mockRetrieve.mockResolvedValue({
+			status: "open",
+			client_secret: "cs_existing_secret",
+		});
+
+		const response = await POST(paymentRequest());
+
+		expect(await response.json()).toEqual({ clientSecret: "cs_existing_secret" });
+		expect(mockRetrieve).toHaveBeenCalledWith("cs_existing");
+		expect(mockCreate).not.toHaveBeenCalled();
+		expect(db.booking.update).not.toHaveBeenCalled();
+	});
+
+	it("期限切れの Session には新しい Session を作成して追跡情報を更新する", async () => {
+		const expiredAt = new Date("2025-01-01T00:00:00.000Z");
+		vi.mocked(db.booking.findFirst).mockResolvedValue({
+			id: "booking-1",
+			paymentStatus: false,
+			checkoutSessionId: "cs_expired",
+			checkoutSessionExpiresAt: expiredAt,
+			totalNights: 3,
+			orderTotal: 300,
+			checkIn: new Date("2025-02-01"),
+			checkOut: new Date("2025-02-04"),
+			property: { name: "Beach House", image: "https://example.com/img.jpg" },
+		} as never);
+
+		const response = await POST(paymentRequest());
+
+		expect(response.status).toBe(200);
+		expect(mockRetrieve).not.toHaveBeenCalled();
+		expect(mockCreate).toHaveBeenCalledWith(expect.any(Object), {
+			idempotencyKey: `checkout-session-booking-1-${expiredAt.getTime()}`,
+		});
+		expect(db.booking.update).toHaveBeenCalledWith({
+			where: { id: "booking-1" },
+			data: {
+				checkoutSessionId: "cs_test_123",
+				checkoutSessionExpiresAt: new Date(1_800_000_000 * 1000),
+			},
+		});
+	});
+
+	it("未完了の有効 Session には新しい Session を作成しない", async () => {
+		vi.mocked(db.booking.findFirst).mockResolvedValue({
+			id: "booking-1",
+			paymentStatus: false,
+			checkoutSessionId: "cs_completed",
+			checkoutSessionExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			property: { name: "Beach House", image: "https://example.com/img.jpg" },
+		} as never);
+		mockRetrieve.mockResolvedValue({ status: "complete" });
+
+		const response = await POST(paymentRequest());
+
+		expect(response.status).toBe(409);
+		expect(mockCreate).not.toHaveBeenCalled();
 	});
 
 	it("予約が見つからない場合は 404 を返す", async () => {
@@ -208,3 +288,10 @@ describe("POST /api/payment", () => {
 		});
 	});
 });
+
+function paymentRequest() {
+	return new NextRequest("http://localhost:3000/api/payment", {
+		method: "POST",
+		body: JSON.stringify({ bookingId: "booking-1" }),
+	});
+}

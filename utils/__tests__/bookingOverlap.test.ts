@@ -129,6 +129,10 @@ describe("createBookingAction", () => {
 			where: {
 				profileId: "user-1",
 				paymentStatus: false,
+				NOT: {
+					checkoutSessionId: { not: null },
+					checkoutSessionExpiresAt: { gt: expect.any(Date) },
+				},
 			},
 		});
 	});
