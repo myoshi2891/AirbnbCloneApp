@@ -231,9 +231,10 @@ export const toggleFavoriteAction = async (prevState: {
 
 	try {
 		if (favoriteId) {
-			await db.favorite.delete({
+			await db.favorite.deleteMany({
 				where: {
 					id: favoriteId,
+					profileId: user.id,
 				},
 			});
 		} else if (!favoriteId) {
