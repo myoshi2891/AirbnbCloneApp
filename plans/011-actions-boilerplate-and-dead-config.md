@@ -3,10 +3,10 @@
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md`.
+> report — do not improvise. Set `PLAN_ROOT` to the selected plan root (for
+> example, `plans`) and update this plan's status row in `$PLAN_ROOT/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 21c0cbf..HEAD -- utils/actions.ts next.config.mjs Dockerfile.dev`
+> **Drift check (run first)**: `git diff --stat 21c0cbf..HEAD -- "$PLAN_ROOT/README.md" utils/actions.ts next.config.mjs Dockerfile.dev`
 > Plan 002/004/006 による utils/actions.ts の差分は想定内。着手前に
 > `ls utils/__tests__/actions.test.ts` で特性テスト（Plan 005）の存在を確認（なければ STOP）。
 
@@ -15,7 +15,7 @@
 - **Priority**: P3
 - **Effort**: M
 - **Risk**: MED
-- **Depends on**: plans/005-server-actions-test-coverage.md, plans/006-error-handling-hardening.md
+- **Depends on**: `$PLAN_ROOT/005-server-actions-test-coverage.md`, `$PLAN_ROOT/006-error-handling-hardening.md`
 - **Category**: tech-debt
 - **Planned at**: commit `21c0cbf`, 2026-07-05
 
@@ -62,6 +62,7 @@ export const updateProfileAction = async (
 ## Scope
 
 **In scope**:
+- `$PLAN_ROOT/README.md`（本プランの status row 更新のみ）
 - `utils/actions.ts`（ヘルパー導入 + 段階的移行 + `any` 撲滅）
 - `next.config.mjs`（デッドブロック削除）
 - `Dockerfile.dev`（コメント整理 + compose 前提の明記コメント）

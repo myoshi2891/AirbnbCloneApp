@@ -3,17 +3,17 @@
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md`.
+> report — do not improvise. Set `PLAN_ROOT` to the selected plan root (for
+> example, `plans`) and update this plan's status row in `$PLAN_ROOT/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 21c0cbf..HEAD -- utils/supabase.ts utils/schemas.ts`
+> **Drift check (run first)**: `git diff --stat 21c0cbf..HEAD -- "$PLAN_ROOT/README.md" utils/supabase.ts utils/schemas.ts`
 
 ## Status
 
 - **Priority**: P2
 - **Effort**: S
 - **Risk**: LOW
-- **Depends on**: plans/001-verification-baseline.md
+- **Depends on**: `$PLAN_ROOT/001-verification-baseline.md`
 - **Category**: security
 - **Planned at**: commit `21c0cbf`, 2026-07-05
 
@@ -59,6 +59,7 @@ export const uploadImage = async (image: File) => {
 ## Scope
 
 **In scope**:
+- `$PLAN_ROOT/README.md`（本プランの status row と Step 3 の調査結果）
 - `utils/supabase.ts`
 - `utils/schemas.ts`（`validateFile` の型検証強化）
 - `utils/__tests__/schemas.test.ts`（テスト追加）
@@ -163,4 +164,4 @@ Step 4 の3ケース + 既存回帰なし。`new File([...], "name", { type: "..
 
 - 将来の強化候補: 画像の再エンコード（sharp）による完全なコンテンツ無害化、古い孤児オブジェクトの清掃ジョブ。
 - Plan 013（画像ギャラリー）はこの `uploadImage` を複数ファイルでループ利用する予定 — シグネチャを変えた場合は Plan 013 の前提を更新すること。
-- Step 3 の調査結果（キー種別）は `plans/README.md` の該当行に一行で追記する。
+- Step 3 の調査結果（キー種別）は `$PLAN_ROOT/README.md` の該当行に一行で追記する。

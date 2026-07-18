@@ -97,7 +97,7 @@ export const fetchProperties = async ({
 
 ### Step 2: Load more UI
 
-`app/page.tsx` で raw `page` search parameter を受けて `PropertiesContainer` に渡す。リポジトリ既存の Zod validation approach に従い、`utils/schemas.ts` に `z.coerce.number().int().min(1).max(100)` を用いる page schema を追加する。`PropertiesContainer` は `safeParse` し、失敗時（空、非数、少数、0以下、100超）は page 1 にフォールバックしてから `skip = (sanitizedPage - 1) * 24` を計算する。これにより最大 skip は 2,376 に制限される。`hasMore` のとき「Load more」リンク（`<Link href={{ query: { ...現行params, page: sanitizedPage + 1 } }}>`）を表示する。サーバーコンポーネントのみで完結させ、クライアント状態は持たない（このリポジトリの Server-first 規約に合わせる）。
+`app/page.tsx` で raw `searchParams` 全体を正規化し、raw `page` と現行 query を `PropertiesContainer` に渡す。リポジトリ既存の Zod validation approach に従い、`utils/schemas.ts` に `z.coerce.number().int().min(1).max(100)` を用いる page schema を追加する。`PropertiesContainer` は `safeParse` し、失敗時（空、非数、少数、0以下、100超）は page 1 にフォールバックしてから `skip = (sanitizedPage - 1) * 24` を計算する。これにより最大 skip は 2,376 に制限される。`hasMore && sanitizedPage < 100` のときだけ「Load more」リンクを表示し、`<Link href={{ query: { ...query, page: sanitizedPage + 1 } }}>` で `category`・`search` を含む現行 query を維持する。これにより page 100 で page 101 を生成して page 1 へ戻るループを防ぐ。サーバーコンポーネントのみで完結させ、クライアント状態は持たない（このリポジトリの Server-first 規約に合わせる）。
 
 注記: 「追記型の無限スクロール」はクライアント化が必要になるため採らない。ページ置き換え型で十分。
 
@@ -126,12 +126,28 @@ const fetchPropertiesCached = unstable_cache(
 - `fetchProperties`: `take+1` 件返るモックで `hasMore: true` と `properties.length === take` になること / ちょうど `take` 件で `hasMore: false`
 - mutation テスト（Plan 005 のもの）に `revalidateTag` 呼び出しのアサーション追加
 - page schema: `1` と `100` を accept、`0`、負数、少数、非数、`101` を reject すること
+- `PropertiesContainer`: `hasMore: true` でも page 100 では Load more リンクを表示しないこと、および page 99 のリンクが `category`・`search` を保持して page 100 を設定すること
 
 **Verify**: `bun run test:run` → 全パス
 
 ## Test plan
 
-Step 4 の3ケース + 既存回帰なし。`unstable_cache` はテストでは素通しモック（`vi.mock("next/cache", () => ({ unstable_cache: (fn) => fn, revalidatePath: vi.fn(), revalidateTag: vi.fn() }))`）。
+Step 4 の4ケース + 既存回帰なし。`next/cache` の共有モックは `vi.hoisted()` で先に定義し、`vi.mock` の factory とアサーションの両方で同じ関数を参照する:
+
+```ts
+const { mockRevalidatePath, mockRevalidateTag } = vi.hoisted(() => ({
+    mockRevalidatePath: vi.fn(),
+    mockRevalidateTag: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+    unstable_cache: (fn: <T>(...args: T[]) => unknown) => fn,
+    revalidatePath: mockRevalidatePath,
+    revalidateTag: mockRevalidateTag,
+}));
+```
+
+各 mutation テストでは inline の `vi.fn()` ではなく `mockRevalidateTag` と `mockRevalidatePath` をアサートする。
 
 ## Done criteria
 

@@ -91,7 +91,7 @@ Modifier on any planning invocation (`/improve --issues`, `/improve security --i
 1. Preflight: `gh auth status` succeeds and the repo has a GitHub remote. If either fails, write the plan files as normal and say why issues were skipped.
 2. Visibility check: `gh repo view --json visibility`. If the repo is **public**, warn the user that issues are publicly visible and get explicit confirmation before publishing any plan that describes a security vulnerability, credential location, or other sensitive finding.
 3. Show the list of titles about to become issues; confirm once if interactive.
-4. Per plan: `gh issue create --title "<plan title>" --body-file <plan file>`. Labels: `improve` plus the category — apply only if the labels exist or can be created without erroring; skip labels rather than fail.
+4. Per plan: set `plan_path` to the actual plan file and `category` to its Category value, then run `gh issue create --title "<plan title>" --body-file "$plan_path" --label improve --label "$category"`. Labels: `improve` plus the category — apply only if the labels exist or can be created without erroring; skip labels rather than fail.
 5. Record each issue URL in the plan's Status block (`- **Issue**: <url>`) and the index.
 
 The plan file remains the source of truth; the issue is distribution. The self-containment rule pays off here — the issue body needs no edits to make sense to whoever (or whatever) picks it up.
