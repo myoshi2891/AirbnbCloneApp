@@ -40,4 +40,38 @@ describe("verification baseline", () => {
 			previousIndex = commandIndex;
 		}
 	});
+
+	it("provides a safe environment template", () => {
+		const template = fs.readFileSync(
+			path.join(repoRoot, ".env.example"),
+			"utf8"
+		);
+		const variables = Object.fromEntries(
+			template
+				.split("\n")
+				.filter((line) => line.length > 0 && !line.startsWith("#"))
+				.map((line) => {
+					const separatorIndex = line.indexOf("=");
+
+					return [
+						line.slice(0, separatorIndex),
+						line.slice(separatorIndex + 1),
+					];
+				})
+		);
+
+		expect(variables).toEqual({
+			DATABASE_URL:
+				'"postgresql://user:password@host:5432/dbname?pgbouncer=true"',
+			DIRECT_URL: '"postgresql://user:password@host:5432/dbname"',
+			NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '"pk_test_..."',
+			CLERK_SECRET_KEY: '"sk_test_..."',
+			NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: '"pk_test_..."',
+			STRIPE_SECRET_KEY: '"sk_test_..."',
+			STRIPE_WEBHOOK_SECRET: '"whsec_..."',
+			SUPABASE_URL: '"https://your-project.supabase.co"',
+			SUPABASE_KEY: '"your-anon-or-service-key"',
+			ADMIN_USER_ID: '"user_..."',
+		});
+	});
 });
