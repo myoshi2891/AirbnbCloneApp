@@ -171,6 +171,26 @@ describe("error handling", () => {
 		expect(mockDb.profile.create).not.toHaveBeenCalled();
 		expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
 	});
+
+	it("guides profile creation when the account has no email address", async () => {
+		mockCurrentUser.mockResolvedValue({
+			...authenticatedUser,
+			emailAddresses: [],
+		});
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		const formData = new FormData();
+		formData.set("firstName", "John");
+		formData.set("lastName", "Doe");
+		formData.set("username", "john_doe");
+
+		await expect(createProfileAction({}, formData)).resolves.toEqual({
+			message: "Your account has no email address. Please add one and retry.",
+		});
+
+		expect(mockDb.profile.create).not.toHaveBeenCalled();
+		expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
+		expect(consoleError).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("booking actions", () => {

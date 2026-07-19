@@ -50,13 +50,19 @@ export const createProfileAction = async (
 		if (!user) {
 			throw new ValidationError("Please login to create a profile");
 		}
+		const email = user.emailAddresses[0]?.emailAddress;
+		if (!email) {
+			throw new ValidationError(
+				"Your account has no email address. Please add one and retry."
+			);
+		}
 
 		const rawData = Object.fromEntries(formData);
 		const validatedFields = validateWithZodSchema(profileSchema, rawData);
 		await db.profile.create({
 			data: {
 				clerkId: user.id,
-				email: user.emailAddresses[0].emailAddress,
+				email,
 				profileImage: user.imageUrl ?? "",
 				...validatedFields,
 			},
@@ -67,7 +73,6 @@ export const createProfileAction = async (
 			},
 		});
 	} catch (error) {
-		console.error("createProfileAction エラー発生！", error);
 		return renderError(error);
 	}
 
