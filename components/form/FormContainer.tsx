@@ -8,6 +8,11 @@ const initialState = {
 	message: "",
 };
 
+/**
+ * Renders a form that submits through the provided action and displays action messages as toast notifications.
+ *
+ * @returns A form containing the provided child elements.
+ */
 function FormContainer({
 	action,
 	children,

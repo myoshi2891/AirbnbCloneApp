@@ -13,6 +13,9 @@ const stripePromise = loadStripe(
 	process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string
 );
 
+/**
+ * Renders the embedded Stripe checkout for the booking identified in the URL.
+ */
 function CheckoutContent() {
 	const searchParams = useSearchParams();
 	const bookingId = searchParams.get("bookingId");
@@ -33,6 +36,9 @@ function CheckoutContent() {
 	);
 }
 
+/**
+ * Renders the Stripe checkout page with a fallback while checkout content loads.
+ */
 function CheckoutPage() {
 	return (
 		<Suspense fallback={<div id="checkout" />}>

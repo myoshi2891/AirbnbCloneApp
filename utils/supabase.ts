@@ -10,6 +10,12 @@ const imageExtensions: Record<string, string> = {
 	"image/gif": "gif",
 };
 
+/**
+ * Creates a Supabase client configured for storage operations.
+ *
+ * @returns A configured Supabase client.
+ * @throws If the Supabase URL or key is not configured.
+ */
 function createSupabaseClient() {
 	const url = process.env.SUPABASE_URL;
 	const key = process.env.SUPABASE_KEY;

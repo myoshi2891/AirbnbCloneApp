@@ -22,6 +22,13 @@ export const profileSchema = z.object({
 });
 
 
+/**
+ * Validates data against a Zod schema.
+ *
+ * @param schema - The schema used to validate the data
+ * @param data - The value to validate
+ * @returns The validated data
+ */
 export function validateWithZodSchema<T>(
 	schema: ZodSchema<T>,
 	data: unknown
@@ -46,7 +53,7 @@ const imageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
  * Verifies that an image file's content matches its declared MIME type.
  *
  * @param file - The image file to validate.
- * @throws Error if the detected image type differs from the declared MIME type.
+ * @throws ValidationError If the detected image type differs from the declared MIME type.
  */
 export async function validateImageContent(file: File): Promise<void> {
 	const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
