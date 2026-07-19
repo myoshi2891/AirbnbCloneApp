@@ -37,6 +37,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 
 - **001 が全プランの前提**: typecheck スクリプトと CI がないと、どのプランも Done criteria を機械検証できない。
 - 2026-07-19以降、依存管理はBun 1.3.12と`bun.lock`へ一本化。Plan 001/010の二重ロックファイル記述は廃止済み。
+- React 19、`useActionState`、React Leaflet v5への移行は`96dbda4`で完了。Strict Modeの地図ライフサイクルとフォームActionは`22dfb3e`、`2e411d6`で回帰テスト済み。
 - 004 は 002 の後: 重複チェックは検証済みの日付入力（`createBookingSchema`）を前提にする。
 - 006 と 011 は 005 の後: `utils/actions.ts` のリファクタは特性テストという安全網を先に敷く（テストなしのリファクタは盲目出荷）。
 - 012 は 003 の後が効率的: webhook 実装後なら「Webhook で確定」という既存ドキュメント記述が真実になり、修正が小さい。003 を実施しない決定をした場合は 012 を先行させ「webhook ではない」旨に修正する。

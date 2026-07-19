@@ -1,6 +1,6 @@
 # Plan 010: 依存関係の整合 — Prisma メジャー不一致の解消と段階的アップグレード方針
 
-> **2026-07-19 partial supersession**: Bun単独運用、Clerk v6移行、脆弱な推移依存の更新は実施済み。
+> **2026-07-19 partial supersession**: Bun単独運用、Clerk v6移行、React 19移行、脆弱な推移依存の更新は実施済み。
 > `package-lock.json`同期手順は廃止し、今後は`package.json`と`bun.lock`だけを更新する。
 > このプランに残る作業はPrisma、eslint-config-next、Stripe API versionの整合に限定する。
 
@@ -27,7 +27,7 @@
 
 - **Prisma CLI（v5.22）とクライアント（v6.6）がメジャー不一致**。`bun run build` は `npx prisma generate` を実行するため、v5 の CLI が v6 のクライアントを生成するという非サポート構成で毎ビルド動いている。
 - Stripe SDK は v15（最新 ~v18）で `apiVersion` 未指定 — Stripe アカウント既定に暗黙依存し、ダッシュボード変更でリクエスト/レスポンス形状が静かに変わり得る。**決済コードの土台として不安定**。
-- ESLint 8 は EOL、`eslint-config-next`（15.5.12）と `next`（15.5.18）のズレ、Clerk 5（Next 15 向けは v6）、React 18（Next 15.5 は 19 対応）— 放置するほどアップグレード費用が複利で増える。
+- ESLint 8 は EOLで、`eslint-config-next`（15.5.12）と`next`（15.5.18）にもパッチ差がある。Clerk 6とReact 19の整合は完了済みで、残る依存更新を放置するほどアップグレード費用が増える。
 
 ## Current state
 
@@ -72,7 +72,7 @@
 - Prisma v6 CLI 化に伴う `prisma/migrations` の差分が出た場合のみその確認
 
 **Out of scope**:
-- React 19 / ESLint 9 / Stripe 18 への**実アップグレード** — Step 4 で「調査と分割プラン化」までに留める（Clerk 6は実施済み）。
+- ESLint 9 / Stripe 18 への**実アップグレード** — Step 4 で「調査と分割プラン化」までに留める（Clerk 6とReact 19は実施済み）。
 - `overrides` セクションの変更。
 - アプリコードのロジック変更。
 
@@ -123,13 +123,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 以下を調査し、`plans/README.md` の Dependency notes に3行ずつで追記する（実施は将来の個別プラン）:
 
 1. **ESLint 9 + flat config**: `eslint-config-next` の flat config 対応状況、`.eslintrc.json` からの移行手順の要点
-2. **Clerk 6**: `clerkMiddleware` API の変更点、`clerkClient` の呼び出し形（現在 `utils/actions.ts:57` で `clerkClient.users.updateUserMetadata` を直接使用 — v6 では `await clerkClient()` になる点に注意）
-3. **React 19**: Next 15.5 での対応状況、`@types/react` v19、react-day-picker v8 / react-leaflet v4 等の peer 依存が React 19 を許容するか
-4. **Stripe v18**: Checkout Sessions API の互換性、`constructEvent` の変更有無
+2. **Stripe v18**: Checkout Sessions API の互換性、`constructEvent` の変更有無
 
-推奨実行順序: ESLint 9 → Clerk 6 → React 19（Stripe は Plan 003/014 の完了後）。
+React 19移行では`react-day-picker@8.10.2`、`react-leaflet@5.0.0`、`next-themes@0.4.6`、`@stripe/react-stripe-js@3.10.0`までpeer dependencyを整合済み。StripeサーバーSDKのメジャー更新はPlan 003/014の完了後に行う。
 
-**Verify**: `plans/README.md` に4項目の追記が存在する
+**Verify**: `plans/README.md` に2項目の追記が存在する
 
 ## Test plan
 
