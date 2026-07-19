@@ -4,6 +4,11 @@ import DarkMode from "./DarkMode";
 import Logo from "./Logo";
 import { Suspense } from "react";
 
+/**
+ * Renders the site's navigation bar with search, theme, and link controls.
+ *
+ * @returns The navigation bar element.
+ */
 function NavBar() {
 	return (
 		<nav className="border-b">
