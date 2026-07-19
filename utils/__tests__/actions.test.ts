@@ -46,7 +46,12 @@ vi.mock("@clerk/nextjs/server", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: mockRedirect }));
 
-import { fetchBookings, fetchStats } from "@/utils/actions";
+import {
+	createBookingAction,
+	deleteBookingAction,
+	fetchBookings,
+	fetchStats,
+} from "@/utils/actions";
 
 const authenticatedUser = {
 	id: "user_test_123",
@@ -111,5 +116,37 @@ describe("authorization guards", () => {
 		expect(mockDb.booking.count).toHaveBeenCalledWith({
 			where: { paymentStatus: true },
 		});
+	});
+});
+
+describe("booking actions", () => {
+	it("returns a not-found result without starting a transaction", async () => {
+		mockDb.property.findUnique.mockResolvedValue(null);
+
+		await expect(
+			createBookingAction({
+				propertyId: "550e8400-e29b-41d4-a716-446655440000",
+				checkIn: new Date("2030-06-20"),
+				checkOut: new Date("2030-06-25"),
+			})
+		).resolves.toEqual({ message: "Property not found..." });
+
+		expect(mockDb.$transaction).not.toHaveBeenCalled();
+	});
+
+	it("scopes booking deletion to the authenticated user", async () => {
+		mockDb.booking.delete.mockResolvedValue({ id: "booking_test_123" });
+
+		await expect(
+			deleteBookingAction({ bookingId: "booking_test_123" })
+		).resolves.toEqual({ message: "Booking deleted successfully!" });
+
+		expect(mockDb.booking.delete).toHaveBeenCalledWith({
+			where: {
+				id: "booking_test_123",
+				profileId: authenticatedUser.id,
+			},
+		});
+		expect(mockRevalidatePath).toHaveBeenCalledWith("/bookings");
 	});
 });

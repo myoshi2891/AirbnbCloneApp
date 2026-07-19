@@ -106,6 +106,9 @@ describe("createBookingAction", () => {
 				totalNights: 5,
 			},
 		});
+		expect(mockRedirect).toHaveBeenCalledWith(
+			"/checkout/?bookingId=booking-1"
+		);
 	});
 
 	it("連続する予約を重複として扱わない半開区間条件を使用する", async () => {
