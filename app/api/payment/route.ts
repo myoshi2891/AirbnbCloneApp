@@ -70,14 +70,8 @@ export const POST = async (req: NextRequest) => {
 		});
 	}
 
-	const now = new Date();
-
 	try {
-		if (
-			booking.checkoutSessionId &&
-			booking.checkoutSessionExpiresAt &&
-			booking.checkoutSessionExpiresAt > now
-		) {
+		if (booking.checkoutSessionId) {
 			const session = await stripe.checkout.sessions.retrieve(
 				booking.checkoutSessionId
 			);

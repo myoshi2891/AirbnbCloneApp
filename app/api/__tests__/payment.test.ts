@@ -158,8 +158,8 @@ describe("POST /api/payment", () => {
 		);
 	});
 
-	it("有効な保存済み Session を再利用する", async () => {
-		const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+	it("DB の期限が切れていても Stripe で open の Session を再利用する", async () => {
+		const expiresAt = new Date("2025-01-01T00:00:00.000Z");
 		vi.mocked(db.booking.findFirst).mockResolvedValue({
 			id: BOOKING_ID,
 			paymentStatus: false,
@@ -193,11 +193,12 @@ describe("POST /api/payment", () => {
 			checkOut: new Date("2025-02-04"),
 			property: { name: "Beach House", image: "https://example.com/img.jpg" },
 		} as never);
+		mockRetrieve.mockResolvedValue({ status: "expired" });
 
 		const response = await POST(paymentRequest());
 
 		expect(response.status).toBe(200);
-		expect(mockRetrieve).not.toHaveBeenCalled();
+		expect(mockRetrieve).toHaveBeenCalledWith("cs_expired");
 		expect(mockCreate).toHaveBeenCalledWith(expect.any(Object), {
 			idempotencyKey: `checkout-session-${BOOKING_ID}-${expiredAt.getTime()}`,
 		});
