@@ -6,6 +6,7 @@ import {
 	imageSchema,
 	profileSchema,
 	propertySchema,
+	ValidationError,
 	validateWithZodSchema,
 } from "./schemas";
 import db from "./db";
@@ -19,7 +20,9 @@ import { formatDate } from "./format";
 const getAuthUser = async () => {
 	const user = await currentUser();
 	if (!user) {
-		throw new Error("You must be logged in to access this route...");
+		throw new ValidationError(
+			"You must be logged in to access this route..."
+		);
 	}
 	if (!user.privateMetadata.hasProfile) redirect("/profile/create");
 	return user;
@@ -31,10 +34,11 @@ const getAdminUser = async () => {
 	return user;
 };
 const renderError = (error: unknown): { message: string } => {
-	console.log(error);
-	return {
-		message: error instanceof Error ? error.message : "An error occurred",
-	};
+	console.error(error);
+	if (error instanceof ValidationError) {
+		return { message: error.message };
+	}
+	return { message: "An unexpected error occurred. Please try again." };
 };
 
 export const createProfileAction = async (
@@ -43,7 +47,9 @@ export const createProfileAction = async (
 ) => {
 	try {
 		const user = await currentUser();
-		if (!user) throw new Error("Please login to create a profile");
+		if (!user) {
+			throw new ValidationError("Please login to create a profile");
+		}
 
 		const rawData = Object.fromEntries(formData);
 		const validatedFields = validateWithZodSchema(profileSchema, rawData);
@@ -480,7 +486,9 @@ export const createBookingAction = async (prevState: {
 					select: { id: true },
 				});
 				if (conflict) {
-					throw new Error("Selected dates are no longer available");
+					throw new ValidationError(
+						"Selected dates are no longer available"
+					);
 				}
 
 				return tx.booking.create({

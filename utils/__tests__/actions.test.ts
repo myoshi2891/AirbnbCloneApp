@@ -5,6 +5,7 @@ const {
 	mockDb,
 	mockRedirect,
 	mockRevalidatePath,
+	mockUpdateUserMetadata,
 } = vi.hoisted(() => ({
 	mockCurrentUser: vi.fn(),
 	mockDb: {
@@ -20,6 +21,7 @@ const {
 		},
 		profile: {
 			count: vi.fn(),
+			create: vi.fn(),
 		},
 		property: {
 			count: vi.fn(),
@@ -34,13 +36,14 @@ const {
 		throw new Error(`REDIRECT:${url}`);
 	}),
 	mockRevalidatePath: vi.fn(),
+	mockUpdateUserMetadata: vi.fn(),
 }));
 
 vi.mock("@/utils/db", () => ({ default: mockDb }));
 vi.mock("@/utils/supabase", () => ({ uploadImage: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({
 	auth: vi.fn(),
-	clerkClient: { users: { updateUserMetadata: vi.fn() } },
+	clerkClient: { users: { updateUserMetadata: mockUpdateUserMetadata } },
 	currentUser: mockCurrentUser,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
@@ -48,6 +51,7 @@ vi.mock("next/navigation", () => ({ redirect: mockRedirect }));
 
 import {
 	createBookingAction,
+	createProfileAction,
 	createReviewAction,
 	deleteBookingAction,
 	deleteReviewAction,
@@ -70,6 +74,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.unstubAllEnvs();
+	vi.restoreAllMocks();
 });
 
 describe("authorization guards", () => {
@@ -119,6 +124,52 @@ describe("authorization guards", () => {
 		expect(mockDb.booking.count).toHaveBeenCalledWith({
 			where: { paymentStatus: true },
 		});
+	});
+});
+
+describe("error handling", () => {
+	it("replaces internal database details with a fixed client message", async () => {
+		const databaseError = new Error(
+			"Invalid `prisma.booking.delete()` invocation: secret_column"
+		);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		mockDb.booking.delete.mockRejectedValue(databaseError);
+
+		await expect(
+			deleteBookingAction({ bookingId: "booking_test_123" })
+		).resolves.toEqual({
+			message: "An unexpected error occurred. Please try again.",
+		});
+
+		expect(consoleError).toHaveBeenCalledTimes(1);
+		expect(consoleError).toHaveBeenCalledWith(databaseError);
+	});
+
+	it("preserves booking validation messages", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(
+			createBookingAction({
+				propertyId: "550e8400-e29b-41d4-a716-446655440000",
+				checkIn: new Date("2030-06-25"),
+				checkOut: new Date("2030-06-20"),
+			})
+		).resolves.toEqual({ message: "checkOut must be after checkIn" });
+
+		expect(mockDb.property.findUnique).not.toHaveBeenCalled();
+		expect(mockDb.$transaction).not.toHaveBeenCalled();
+	});
+
+	it("preserves the profile login message", async () => {
+		mockCurrentUser.mockResolvedValue(null);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(createProfileAction({}, new FormData())).resolves.toEqual({
+			message: "Please login to create a profile",
+		});
+
+		expect(mockDb.profile.create).not.toHaveBeenCalled();
+		expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
 	});
 });
 
