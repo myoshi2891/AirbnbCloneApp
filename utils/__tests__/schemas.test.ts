@@ -4,6 +4,7 @@ import {
 	propertySchema,
 	createBookingSchema,
 	createReviewSchema,
+	ValidationError,
 	validateImageContent,
 	validateWithZodSchema,
 } from "../schemas";
@@ -17,7 +18,9 @@ describe("validateWithZodSchema", () => {
 
 	it("無効なデータでエラーをスローする", () => {
 		const data = { firstName: "J", lastName: "D", username: "j" };
-		expect(() => validateWithZodSchema(profileSchema, data)).toThrow();
+		expect(() => validateWithZodSchema(profileSchema, data)).toThrow(
+			ValidationError
+		);
 	});
 });
 
@@ -180,7 +183,10 @@ describe("validateImageContent", () => {
 			{ type: "image/png" }
 		);
 
-		await expect(validateImageContent(file)).rejects.toThrow(
+		const error = await validateImageContent(file).catch((reason) => reason);
+
+		expect(error).toBeInstanceOf(ValidationError);
+		expect(error.message).toBe(
 			"File content does not match the declared image type"
 		);
 	});

@@ -1,6 +1,13 @@
 import * as z from "zod";
 import { ZodSchema } from "zod";
 
+export class ValidationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ValidationError";
+	}
+}
+
 export const profileSchema = z.object({
 	// firstName: z.string().max(5, { message: "Max length is 5 characters" }),
 	firstName: z
@@ -23,7 +30,7 @@ export function validateWithZodSchema<T>(
 
 	if (!result.success) {
 		const errors = result.error.errors.map((error) => error.message);
-		throw new Error(errors.join(","));
+		throw new ValidationError(errors.join(","));
 	}
 
 	return result.data;
@@ -70,7 +77,9 @@ export async function validateImageContent(file: File): Promise<void> {
 						: null;
 
 	if (imageType !== file.type) {
-		throw new Error("File content does not match the declared image type");
+		throw new ValidationError(
+			"File content does not match the declared image type"
+		);
 	}
 }
 
