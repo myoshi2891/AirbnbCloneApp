@@ -67,7 +67,8 @@ export const createProfileAction = async (
 				...validatedFields,
 			},
 		});
-		await clerkClient.users.updateUserMetadata(user.id, {
+		const client = await clerkClient();
+		await client.users.updateUserMetadata(user.id, {
 			privateMetadata: {
 				hasProfile: true,
 			},

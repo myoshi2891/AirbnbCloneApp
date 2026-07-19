@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const { mockCreateRouteMatcher } = vi.hoisted(() => ({
@@ -24,30 +24,65 @@ vi.mock("@clerk/nextjs/server", () => ({
 
 import middleware from "./middleware";
 
+type MiddlewareAuth = (() => Promise<{ userId: string | null }>) & {
+	protect: ReturnType<typeof vi.fn>;
+};
+
 const invokeMiddleware = middleware as unknown as (
-	auth: () => Promise<{ userId: string | null; protect: () => void }>,
+	auth: MiddlewareAuth,
 	req: NextRequest
 ) => Promise<Response>;
 
+function createAuth(userId: string | null) {
+	const protect = vi.fn().mockResolvedValue(undefined);
+	const auth = Object.assign(vi.fn().mockResolvedValue({ userId }), { protect });
+	return { auth, protect };
+}
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
 describe("middleware", () => {
 	it("Stripe webhook は Clerk 認証を通さず、他の API は保護する", async () => {
-		const webhookProtect = vi.fn();
+		const webhookAuth = createAuth(null);
 		await invokeMiddleware(
-			async () => ({ userId: null, protect: webhookProtect }),
+			webhookAuth.auth,
 			new NextRequest("http://localhost:3000/api/webhook")
 		);
 
-		expect(webhookProtect).not.toHaveBeenCalled();
+		expect(webhookAuth.protect).not.toHaveBeenCalled();
 		expect(mockCreateRouteMatcher).toHaveBeenCalledWith(
 			expect.arrayContaining(["/api/webhook(.*)"])
 		);
 
-		const paymentProtect = vi.fn();
+		const paymentAuth = createAuth(null);
 		await invokeMiddleware(
-			async () => ({ userId: null, protect: paymentProtect }),
+			paymentAuth.auth,
 			new NextRequest("http://localhost:3000/api/payment")
 		);
 
-		expect(paymentProtect).toHaveBeenCalledOnce();
+		expect(paymentAuth.protect).toHaveBeenCalledOnce();
+	});
+
+	it("管理者ルートでは設定済み管理者だけを許可する", async () => {
+		vi.stubEnv("ADMIN_USER_ID", "user_admin_test");
+		const nonAdminAuth = createAuth("user_other");
+
+		const redirectResponse = await invokeMiddleware(
+			nonAdminAuth.auth,
+			new NextRequest("http://localhost:3000/admin")
+		);
+
+		expect(redirectResponse.headers.get("location")).toBe("http://localhost:3000/");
+		expect(nonAdminAuth.protect).not.toHaveBeenCalled();
+
+		const adminAuth = createAuth("user_admin_test");
+		await invokeMiddleware(
+			adminAuth.auth,
+			new NextRequest("http://localhost:3000/admin")
+		);
+
+		expect(adminAuth.protect).toHaveBeenCalledOnce();
 	});
 });

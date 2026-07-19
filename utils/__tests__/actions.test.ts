@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	mockCurrentUser,
+	mockClerkClient,
 	mockDb,
 	mockRedirect,
 	mockRevalidatePath,
 	mockUpdateUserMetadata,
 } = vi.hoisted(() => ({
 	mockCurrentUser: vi.fn(),
+	mockClerkClient: vi.fn(),
 	mockDb: {
 		$transaction: vi.fn(),
 		booking: {
@@ -43,7 +45,7 @@ vi.mock("@/utils/db", () => ({ default: mockDb }));
 vi.mock("@/utils/supabase", () => ({ uploadImage: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({
 	auth: vi.fn(),
-	clerkClient: { users: { updateUserMetadata: mockUpdateUserMetadata } },
+	clerkClient: mockClerkClient,
 	currentUser: mockCurrentUser,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
@@ -70,6 +72,9 @@ const authenticatedUser = {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockCurrentUser.mockResolvedValue(authenticatedUser);
+	mockClerkClient.mockResolvedValue({
+		users: { updateUserMetadata: mockUpdateUserMetadata },
+	});
 });
 
 afterEach(() => {
@@ -190,6 +195,21 @@ describe("error handling", () => {
 		expect(mockDb.profile.create).not.toHaveBeenCalled();
 		expect(mockUpdateUserMetadata).not.toHaveBeenCalled();
 		expect(consoleError).toHaveBeenCalledTimes(1);
+	});
+
+	it("updates Clerk metadata through the asynchronous client after profile creation", async () => {
+		mockDb.profile.create.mockResolvedValue({ id: "profile_test_123" });
+		const formData = new FormData();
+		formData.set("firstName", "John");
+		formData.set("lastName", "Doe");
+		formData.set("username", "john_doe");
+
+		await expect(createProfileAction({}, formData)).rejects.toThrow("REDIRECT:/");
+
+		expect(mockClerkClient).toHaveBeenCalledOnce();
+		expect(mockUpdateUserMetadata).toHaveBeenCalledWith(authenticatedUser.id, {
+			privateMetadata: { hasProfile: true },
+		});
 	});
 });
 

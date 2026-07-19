@@ -25,7 +25,7 @@ describe("verification baseline", () => {
 		expect(workflow).toContain("uses: oven-sh/setup-bun@v2");
 
 		const commands = [
-			"bun install --frozen-lockfile",
+			"bun ci",
 			"bunx prisma generate",
 			"bun run lint",
 			"bun run typecheck",
@@ -39,6 +39,21 @@ describe("verification baseline", () => {
 			expect(commandIndex).toBeGreaterThan(previousIndex);
 			previousIndex = commandIndex;
 		}
+	});
+
+	it("uses Bun as the only dependency lockfile", () => {
+		const packageJson = JSON.parse(
+			fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
+		) as { packageManager?: string };
+		const dependabot = fs.readFileSync(
+			path.join(repoRoot, ".github", "dependabot.yml"),
+			"utf8"
+		);
+
+		expect(packageJson.packageManager).toBe("bun@1.3.12");
+		expect(fs.existsSync(path.join(repoRoot, "bun.lock"))).toBe(true);
+		expect(fs.existsSync(path.join(repoRoot, "package-lock.json"))).toBe(false);
+		expect(dependabot).toContain('package-ecosystem: "bun"');
 	});
 
 	it("provides a safe environment template", () => {

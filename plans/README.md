@@ -23,7 +23,7 @@ effort=standard のためホットスポット重点であり、`components/` �
 | 007 | 画像アップロード強化 | P2 | S | 001 | TODO |
 | 008 | 物件グリッドの N+1 解消 | P2 | M | 005(推奨) | TODO |
 | 009 | ページネーションとキャッシュ | P3 | M | 008 | TODO |
-| 010 | 依存整合（Prisma 不一致ほか） | P2 | M | 001 | TODO |
+| 010 | 依存整合（残: Prisma / ESLint / Stripe。Bun・Clerkは完了） | P2 | M | 001 | TODO |
 | 011 | アクションのボイラープレート統合 | P3 | M | 005, 006 | TODO |
 | 012 | ドキュメント精度（README/CLAUDE.md） | P2 | S | 003(推奨) | TODO |
 | 013 | スパイク: 画像ギャラリー + 実座標マップ | P3 | M | 007 | TODO |
@@ -36,6 +36,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 ## Dependency notes
 
 - **001 が全プランの前提**: typecheck スクリプトと CI がないと、どのプランも Done criteria を機械検証できない。
+- 2026-07-19以降、依存管理はBun 1.3.12と`bun.lock`へ一本化。Plan 001/010の二重ロックファイル記述は廃止済み。
 - 004 は 002 の後: 重複チェックは検証済みの日付入力（`createBookingSchema`）を前提にする。
 - 006 と 011 は 005 の後: `utils/actions.ts` のリファクタは特性テストという安全網を先に敷く（テストなしのリファクタは盲目出荷）。
 - 012 は 003 の後が効率的: webhook 実装後なら「Webhook で確定」という既存ドキュメント記述が真実になり、修正が小さい。003 を実施しない決定をした場合は 012 を先行させ「webhook ではない」旨に修正する。

@@ -4,6 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## コマンド
 
+パッケージマネージャーは **Bun 1.3.12**。`bun.lock`だけを依存関係の正本とし、
+`package-lock.json`やnpmコマンドを追加しない。CIとDockerのインストールは`bun ci`を使う。
+
 ```bash
 # 開発サーバー
 bun run dev
@@ -112,7 +115,11 @@ prisma/schema.prisma   # DB スキーマ
 docker compose up
 
 # 本番ビルド
-docker build -f Dockerfile -t airbnb-clone .
+docker build \
+  --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY \
+  --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY \
+  --build-arg NEXT_PUBLIC_WEBSITE_URL \
+  -f Dockerfile -t airbnb-clone .
 ```
 
-`Dockerfile` は multi-stage ビルド。`prisma/schema.prisma` の `binaryTargets` に `linux-musl-openssl-3.0.x` が含まれており Alpine Linux 対応済み。
+`Dockerfile`は、Bunで依存解決・ビルドし、standalone出力をNode.jsで実行するmulti-stage構成。3つの`NEXT_PUBLIC_*`値はビルド前にexportし、build argとして渡す。サーバー用秘密値をbuild argへ渡さない。`prisma/schema.prisma`の`binaryTargets`に`linux-musl-openssl-3.0.x`が含まれておりAlpine Linux対応済み。

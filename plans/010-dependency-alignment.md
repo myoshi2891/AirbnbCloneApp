@@ -1,12 +1,16 @@
 # Plan 010: 依存関係の整合 — Prisma メジャー不一致の解消と段階的アップグレード方針
 
+> **2026-07-19 partial supersession**: Bun単独運用、Clerk v6移行、脆弱な推移依存の更新は実施済み。
+> `package-lock.json`同期手順は廃止し、今後は`package.json`と`bun.lock`だけを更新する。
+> このプランに残る作業はPrisma、eslint-config-next、Stripe API versionの整合に限定する。
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
 > report — do not improvise. When done, update the status row for this plan
 > in `plans/README.md`.
 >
-> **Drift check (run first)**: `git diff --stat 21c0cbf..HEAD -- package.json bun.lock package-lock.json`
+> **Drift check (run first)**: `git diff --stat 21c0cbf..HEAD -- package.json bun.lock`
 > Dependabot による bump が入っている可能性が高い。バージョン番号は「現在の実値」を
 > `package.json` で確認し直してから作業すること（本プランの番号は 21c0cbf 時点）。
 
@@ -47,8 +51,8 @@
 ```
 
 - Stripe 初期化（`app/api/payment/route.ts:2`, `app/api/confirm/route.ts:2`）: `new Stripe(process.env.STRIPE_SECRET_KEY as string)` — `apiVersion` なし。
-- パッケージマネージャー: **bun**（`bun add` / `bun install`）。Dependabot 用に `package-lock.json` を `npm install --package-lock-only` で同期する運用（意図的な二重管理）。
-- `overrides` セクション（glob/minimatch/brace-expansion/lodash/qs）は過去の脆弱性対応 — 触らない。
+- パッケージマネージャー: **Bun 1.3.12**。`bun.lock`が唯一のロックファイルで、DependabotもBunエコシステムを監視する。
+- `overrides`セクションは脆弱性対応を含むため、本プランでは触らない。
 
 ## Commands you will need
 
@@ -58,17 +62,17 @@
 | Generate  | `bunx prisma generate`                   | exit 0              |
 | Typecheck | `bun run typecheck`                      | exit 0              |
 | Tests     | `bun run test:run`                       | all pass            |
-| Lockfile 同期 | `npm install --package-lock-only`    | package-lock.json 更新 |
+| Frozen install | `bun ci`                          | exit 0              |
 
 ## Scope
 
 **In scope**:
-- `package.json` / `bun.lock` / `package-lock.json`（依存バージョンのみ）
+- `package.json` / `bun.lock`（依存バージョンのみ）
 - `app/api/payment/route.ts` / `app/api/confirm/route.ts`（`apiVersion` 指定の1行）
 - Prisma v6 CLI 化に伴う `prisma/migrations` の差分が出た場合のみその確認
 
 **Out of scope**:
-- Clerk 6 / React 19 / ESLint 9 / Stripe 18 への**実アップグレード** — Step 4 で「調査と分割プラン化」までに留める（各々ブレーキング変更があり、1プランに混ぜるのは危険）。
+- React 19 / ESLint 9 / Stripe 18 への**実アップグレード** — Step 4 で「調査と分割プラン化」までに留める（Clerk 6は実施済み）。
 - `overrides` セクションの変更。
 - アプリコードのロジック変更。
 
@@ -84,7 +88,6 @@
 ```
 bun add -d prisma@^6.6.0
 bunx prisma generate
-npm install --package-lock-only
 ```
 
 `bunx prisma migrate status` で既存マイグレーションに警告が出ないか確認（DB 接続が必要 — 接続不可環境なら generate + build 確認のみで可、その旨を報告）。
@@ -95,7 +98,6 @@ npm install --package-lock-only
 
 ```
 bun add -d eslint-config-next@15.5.18
-npm install --package-lock-only
 ```
 
 （`next` の実バージョンが drift していたらそちらに合わせる。）
@@ -140,7 +142,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 - [ ] `grep -n "apiVersion" app/api/payment/route.ts app/api/confirm/route.ts` が両方ヒット
 - [ ] `bun run build` exits 0
 - [ ] `bun run test:run` / `bun run lint` / `bun run typecheck` すべて exit 0
-- [ ] `package-lock.json` が同期済み（`git status` で bun.lock と両方更新されている）
+- [ ] `bun ci`がロックファイル変更なしで成功する
 
 ## STOP conditions
 
@@ -151,5 +153,5 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 ## Maintenance notes
 
 - Dependabot がこのリポジトリで有効なため、本プランの番号は着手時点で古い可能性が高い。**方針（メジャーを揃える・apiVersion を明示・大型は分割）だけが本体**で、番号は都度読み替える。
-- `npm install --package-lock-only` の同期を忘れると Dependabot が古い lockfile 基準でアラートを出し続ける（過去の運用知見）。
-- レビュアーの重点: bun.lock と package-lock.json の両方が同一バージョンを指しているか。
+- Dependabotは`.github/dependabot.yml`のBunエコシステム設定により`bun.lock`を直接更新する。
+- レビュアーの重点: `package-lock.json`を再導入せず、`bun ci`が成功すること。

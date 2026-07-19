@@ -1,5 +1,9 @@
 # Plan 001: 検証基盤の確立 — typecheck スクリプト・CI・.env.example
 
+> **2026-07-19 update**: このプランに記録された二重ロックファイル方針は廃止済み。
+> 現在はBun 1.3.12と`bun.lock`だけを使用し、CIは`bun ci`を実行する。
+> `package-lock.json`を再生成しないこと。
+
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
@@ -42,7 +46,7 @@
 - `typecheck` スクリプトなし。`tsconfig.json` は `strict: true` / `noEmit: true` であり、`npx tsc --noEmit` は監査時点（コミット `21c0cbf`）でエラーゼロで通る（グリーンベースライン確定済み）。
 - `.github/` ディレクトリなし → GitHub Actions ワークフローなし。
 - `.env.example` なし。必須環境変数は `CLAUDE.md` の「環境変数」セクションに列挙されている: `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_KEY`, `ADMIN_USER_ID`。
-- パッケージマネージャーはローカルでは **bun**（`bun.lock`）。ただし Dependabot 用に `package-lock.json` も併存しており、これは意図的な二重管理（削除しないこと）。
+- 監査時点では二重ロックファイル運用だったが、2026-07-19にBun単独運用へ移行済み。
 - テストは Vitest（38件、`bun run test:run` で全パス）。
 
 ## Commands you will need
@@ -62,7 +66,7 @@
 - `.env.example`（新規作成）
 
 **Out of scope** (do NOT touch):
-- `bun.lock` / `package-lock.json` — 依存を追加しないので変わらないはず
+- `bun.lock` — 依存を追加しないので変わらないはず
 - `.env`（存在するが gitignore 済み。**開かない・読まない・コミットしない**）
 - `Dockerfile` / `compose.yaml` — CI での Docker ビルドは本プランの範囲外
 
@@ -101,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
+      - run: bun ci
       - run: bunx prisma generate
       - run: bun run lint
       - run: bun run typecheck
