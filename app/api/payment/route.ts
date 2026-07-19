@@ -2,8 +2,13 @@ import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 import { auth } from "@clerk/nextjs/server";
 import { type NextRequest } from "next/server";
+import * as z from "zod";
 import db from "@/utils/db";
 import { formatDate } from "@/utils/format";
+
+const paymentRequestSchema = z.object({
+	bookingId: z.string().uuid(),
+});
 
 export const POST = async (req: NextRequest) => {
 	const { userId } = await auth();
@@ -19,7 +24,25 @@ export const POST = async (req: NextRequest) => {
 		});
 	}
 
-	const { bookingId } = await req.json();
+	let requestBody: unknown;
+	try {
+		requestBody = await req.json();
+	} catch {
+		return Response.json(null, {
+			status: 400,
+			statusText: "Bad Request",
+		});
+	}
+
+	const request = paymentRequestSchema.safeParse(requestBody);
+	if (!request.success) {
+		return Response.json(null, {
+			status: 400,
+			statusText: "Bad Request",
+		});
+	}
+
+	const { bookingId } = request.data;
 	const booking = await db.booking.findFirst({
 		where: {
 			id: bookingId,
