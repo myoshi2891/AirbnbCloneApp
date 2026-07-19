@@ -1,3 +1,3 @@
 ALTER TABLE "Booking"
 ADD COLUMN "checkoutSessionId" TEXT,
-ADD COLUMN "checkoutSessionExpiresAt" TIMESTAMP(3);
+ADD COLUMN "checkoutSessionExpiresAt" TIMESTAMPTZ(3);

@@ -80,7 +80,7 @@ model Booking {
   checkOut                  DateTime
   paymentStatus             Boolean  @default(false)
   checkoutSessionId        String?
-  checkoutSessionExpiresAt DateTime?
+  checkoutSessionExpiresAt DateTime? @db.Timestamptz(3)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   profile                   Profile  @relation(fields: [profileId], references: [clerkId], onDelete: Cascade)
