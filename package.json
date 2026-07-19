@@ -10,7 +10,8 @@
 		"lint": "next lint",
 		"test": "vitest",
 		"test:run": "vitest run",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"compose:check": "docker compose config --no-interpolate --quiet"
 	},
 	"dependencies": {
 		"@clerk/nextjs": "^6.39.3",

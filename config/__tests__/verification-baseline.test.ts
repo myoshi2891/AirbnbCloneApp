@@ -13,6 +13,24 @@ describe("verification baseline", () => {
 		expect(packageJson.scripts?.typecheck).toBe("tsc --noEmit");
 	});
 
+	it("validates Docker Compose without expanding or printing secrets", () => {
+		const packageJson = JSON.parse(
+			fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
+		) as { scripts?: Record<string, string> };
+		const agentInstructions = fs.readFileSync(
+			path.join(repoRoot, "AGENTS.md"),
+			"utf8"
+		);
+
+		expect(packageJson.scripts?.["compose:check"]).toBe(
+			"docker compose config --no-interpolate --quiet"
+		);
+		expect(agentInstructions).toContain("bun run compose:check");
+		expect(agentInstructions).toContain(
+			"オプションなしの`docker compose config`を実行しない"
+		);
+	});
+
 	it("runs the verification baseline in CI", () => {
 		const workflow = fs.readFileSync(
 			path.join(repoRoot, ".github", "workflows", "ci.yml"),
@@ -26,6 +44,7 @@ describe("verification baseline", () => {
 
 		const commands = [
 			"bun ci",
+			"bun run compose:check",
 			"bunx prisma generate",
 			"bun run lint",
 			"bun run typecheck",

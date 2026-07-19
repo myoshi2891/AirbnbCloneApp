@@ -26,11 +26,17 @@ bun run test:run
 # 単一テストファイルの実行
 bun run test:run utils/__tests__/calculateTotals.test.ts
 
+# Docker Compose設定検証（.envを展開・出力しない）
+bun run compose:check
+
 # Prisma マイグレーション
 bun prisma migrate dev
 bun prisma generate
 bun prisma studio
 ```
+
+Compose設定を検証するときは必ず`bun run compose:check`を使用する。
+オプションなしの`docker compose config`は`.env`の値を出力するため実行しない。
 
 ## アーキテクチャ
 

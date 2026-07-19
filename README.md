@@ -285,6 +285,7 @@ CMD ["node", "server.js"]
 - **再現可能インストール**: CI / Docker ともに `bun ci`
 - **Docker公開設定**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`、`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`、`NEXT_PUBLIC_WEBSITE_URL`をbuild argで渡す（サーバー用秘密値は渡さない）
 - **開発スクリプト**: `bun run dev`, `bun run build`
+- **Compose設定検証**: `bun run compose:check`（`.env`を展開・出力しない）
 - **データベーススクリプト**: `bun prisma generate`, `bun prisma migrate dev`（開発）, `bun prisma migrate deploy`（本番）
 - **型生成**: TypeScript および Prisma 型生成
 
