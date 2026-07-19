@@ -71,7 +71,7 @@ describe("createBookingAction", () => {
 		);
 	});
 
-	it("既存予約と重複すると予約を作成せず空きなしを返す", async () => {
+	it("期限切れ予約を削除してから競合を確認し、重複時は作成しない", async () => {
 		// Arrange
 		mockBookingFindFirst.mockResolvedValue({ id: "paid-booking-1" });
 
@@ -81,7 +81,10 @@ describe("createBookingAction", () => {
 		// Assert
 		expect(result.message).toContain("no longer available");
 		expect(mockBookingCreate).not.toHaveBeenCalled();
-		expect(mockBookingDeleteMany).not.toHaveBeenCalled();
+		expect(mockBookingDeleteMany).toHaveBeenCalledTimes(1);
+		expect(mockBookingDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+			mockBookingFindFirst.mock.invocationCallOrder[0]
+		);
 	});
 
 	it("既存予約と重複しなければ予約を作成する", async () => {

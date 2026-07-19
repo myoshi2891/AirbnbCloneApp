@@ -448,18 +448,6 @@ export const createBookingAction = async (prevState: {
 		const activeCheckoutSessionCutoff = new Date();
 		const booking = await db.$transaction(
 			async (tx) => {
-				const conflict = await tx.booking.findFirst({
-					where: {
-						propertyId,
-						checkIn: { lt: checkOut },
-						checkOut: { gt: checkIn },
-					},
-					select: { id: true },
-				});
-				if (conflict) {
-					throw new Error("Selected dates are no longer available");
-				}
-
 				await tx.booking.deleteMany({
 					where: {
 						profileId: user.id,
@@ -472,6 +460,18 @@ export const createBookingAction = async (prevState: {
 						},
 					},
 				});
+
+				const conflict = await tx.booking.findFirst({
+					where: {
+						propertyId,
+						checkIn: { lt: checkOut },
+						checkOut: { gt: checkIn },
+					},
+					select: { id: true },
+				});
+				if (conflict) {
+					throw new Error("Selected dates are no longer available");
+				}
 
 				return tx.booking.create({
 					data: {
