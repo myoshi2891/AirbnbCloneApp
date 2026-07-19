@@ -117,11 +117,23 @@ describe("createBookingAction", () => {
 		await expect(createBookingAction(bookingInput)).rejects.toThrow("NEXT_REDIRECT");
 
 		// Assert
+		const activeCheckoutSessionCutoff =
+			mockBookingDeleteMany.mock.calls[0][0].where.NOT.checkoutSessionExpiresAt.gt;
 		expect(mockBookingFindFirst).toHaveBeenCalledWith({
 			where: {
 				propertyId: bookingInput.propertyId,
 				checkIn: { lt: bookingInput.checkOut },
 				checkOut: { gt: bookingInput.checkIn },
+				OR: [
+					{ paymentStatus: true },
+					{
+						paymentStatus: false,
+						checkoutSessionId: { not: null },
+						checkoutSessionExpiresAt: {
+							gt: activeCheckoutSessionCutoff,
+						},
+					},
+				],
 			},
 			select: { id: true },
 		});
@@ -134,10 +146,13 @@ describe("createBookingAction", () => {
 				paymentStatus: false,
 				NOT: {
 					checkoutSessionId: { not: null },
-					checkoutSessionExpiresAt: { gt: expect.any(Date) },
+					checkoutSessionExpiresAt: {
+						gt: activeCheckoutSessionCutoff,
+					},
 				},
 			},
 		});
+		expect(activeCheckoutSessionCutoff).toBeInstanceOf(Date);
 	});
 });
 

@@ -466,6 +466,16 @@ export const createBookingAction = async (prevState: {
 						propertyId,
 						checkIn: { lt: checkOut },
 						checkOut: { gt: checkIn },
+						OR: [
+							{ paymentStatus: true },
+							{
+								paymentStatus: false,
+								checkoutSessionId: { not: null },
+								checkoutSessionExpiresAt: {
+									gt: activeCheckoutSessionCutoff,
+								},
+							},
+						],
 					},
 					select: { id: true },
 				});
