@@ -48,9 +48,12 @@ vi.mock("next/navigation", () => ({ redirect: mockRedirect }));
 
 import {
 	createBookingAction,
+	createReviewAction,
 	deleteBookingAction,
+	deleteReviewAction,
 	fetchBookings,
 	fetchStats,
+	toggleFavoriteAction,
 } from "@/utils/actions";
 
 const authenticatedUser = {
@@ -148,5 +151,94 @@ describe("booking actions", () => {
 			},
 		});
 		expect(mockRevalidatePath).toHaveBeenCalledWith("/bookings");
+	});
+});
+
+describe("favorite actions", () => {
+	it("creates a favorite for the authenticated user", async () => {
+		mockDb.favorite.create.mockResolvedValue({ id: "favorite_test_123" });
+
+		await expect(
+			toggleFavoriteAction({
+				propertyId: "property_test_123",
+				favoriteId: null,
+				pathname: "/properties/property_test_123",
+			})
+		).resolves.toEqual({ message: "Added to favorites" });
+
+		expect(mockDb.favorite.create).toHaveBeenCalledWith({
+			data: {
+				propertyId: "property_test_123",
+				profileId: authenticatedUser.id,
+			},
+		});
+		expect(mockDb.favorite.deleteMany).not.toHaveBeenCalled();
+		expect(mockRevalidatePath).toHaveBeenCalledWith(
+			"/properties/property_test_123"
+		);
+	});
+
+	it("deletes only the authenticated user's favorite", async () => {
+		mockDb.favorite.deleteMany.mockResolvedValue({ count: 1 });
+
+		await expect(
+			toggleFavoriteAction({
+				propertyId: "property_test_123",
+				favoriteId: "favorite_test_123",
+				pathname: "/favorites",
+			})
+		).resolves.toEqual({ message: "Removed from favorites" });
+
+		expect(mockDb.favorite.deleteMany).toHaveBeenCalledWith({
+			where: {
+				id: "favorite_test_123",
+				profileId: authenticatedUser.id,
+			},
+		});
+		expect(mockDb.favorite.create).not.toHaveBeenCalled();
+		expect(mockRevalidatePath).toHaveBeenCalledWith("/favorites");
+	});
+});
+
+describe("review actions", () => {
+	it("creates a validated review for the authenticated user", async () => {
+		const formData = new FormData();
+		formData.set("propertyId", "property_test_123");
+		formData.set("rating", "5");
+		formData.set("comment", "A wonderful stay with excellent hospitality.");
+		formData.set("ignored", "not persisted");
+		mockDb.review.create.mockResolvedValue({ id: "review_test_123" });
+
+		await expect(createReviewAction({}, formData)).resolves.toEqual({
+			message: "Review submitted successfully!",
+		});
+
+		expect(mockDb.review.create).toHaveBeenCalledWith({
+			data: {
+				propertyId: "property_test_123",
+				rating: 5,
+				comment: "A wonderful stay with excellent hospitality.",
+				profileId: authenticatedUser.id,
+			},
+		});
+		expect(mockRevalidatePath).toHaveBeenCalledWith(
+			"/properties/property_test_123"
+		);
+	});
+
+	it("scopes review deletion to the authenticated user", async () => {
+		mockDb.review.delete.mockResolvedValue({ id: "review_test_123" });
+
+		await expect(
+			deleteReviewAction({ reviewId: "review_test_123" })
+		).resolves.toEqual({ message: "delete reviews" });
+
+		expect(mockDb.review.delete).toHaveBeenCalledWith({
+			where: {
+				id: "review_test_123",
+				profileId: authenticatedUser.id,
+			},
+		});
+		expect(mockRevalidatePath).toHaveBeenCalledWith("/reviews");
 	});
 });
