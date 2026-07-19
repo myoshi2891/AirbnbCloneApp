@@ -35,6 +35,12 @@ export const imageSchema = z.object({
 
 const imageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
+/**
+ * Verifies that an image file's content matches its declared MIME type.
+ *
+ * @param file - The image file to validate.
+ * @throws Error if the detected image type differs from the declared MIME type.
+ */
 export async function validateImageContent(file: File): Promise<void> {
 	const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
 	const imageType =
@@ -68,6 +74,11 @@ export async function validateImageContent(file: File): Promise<void> {
 	}
 }
 
+/**
+ * Creates a schema for validating JPEG, PNG, WebP, and GIF image files.
+ *
+ * @returns A Zod schema that accepts image files up to 1 MB
+ */
 function validateFile() {
 	const maxUploadSize = 1024 * 1024;
 	return z
@@ -148,6 +159,12 @@ export const createBookingSchema = z
 		}
 	);
 
+/**
+ * Formats a date as a calendar date in the Asia/Tokyo time zone.
+ *
+ * @param date - The date to format
+ * @returns The date in `YYYY-MM-DD` format
+ */
 function getBusinessDate(date: Date) {
 	const parts = new Intl.DateTimeFormat("en-US", {
 		timeZone: "Asia/Tokyo",

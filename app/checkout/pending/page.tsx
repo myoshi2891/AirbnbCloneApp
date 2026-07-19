@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+/**
+ * Displays the payment confirmation status and a link to the bookings list.
+ */
 function PendingPaymentPage() {
 	return (
 		<section className="mx-auto mt-16 max-w-lg rounded-md border p-8 text-center">
