@@ -1,6 +1,13 @@
 import * as z from "zod";
 import { ZodSchema } from "zod";
 
+export class ValidationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ValidationError";
+	}
+}
+
 export const profileSchema = z.object({
 	// firstName: z.string().max(5, { message: "Max length is 5 characters" }),
 	firstName: z
@@ -15,6 +22,13 @@ export const profileSchema = z.object({
 });
 
 
+/**
+ * Validates data against a Zod schema.
+ *
+ * @param schema - The schema used to validate the data
+ * @param data - The value to validate
+ * @returns The validated data
+ */
 export function validateWithZodSchema<T>(
 	schema: ZodSchema<T>,
 	data: unknown
@@ -23,7 +37,7 @@ export function validateWithZodSchema<T>(
 
 	if (!result.success) {
 		const errors = result.error.errors.map((error) => error.message);
-		throw new Error(errors.join(","));
+		throw new ValidationError(errors.join(","));
 	}
 
 	return result.data;
@@ -39,7 +53,7 @@ const imageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
  * Verifies that an image file's content matches its declared MIME type.
  *
  * @param file - The image file to validate.
- * @throws Error if the detected image type differs from the declared MIME type.
+ * @throws ValidationError If the detected image type differs from the declared MIME type.
  */
 export async function validateImageContent(file: File): Promise<void> {
 	const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
@@ -70,7 +84,9 @@ export async function validateImageContent(file: File): Promise<void> {
 						: null;
 
 	if (imageType !== file.type) {
-		throw new Error("File content does not match the declared image type");
+		throw new ValidationError(
+			"File content does not match the declared image type"
+		);
 	}
 }
 

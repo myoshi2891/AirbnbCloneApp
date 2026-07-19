@@ -148,10 +148,10 @@ export const updateProfileAction = async (
 
 - 特性テスト（Plan 005）が未整備。
 - `authedAction` 移行でテストが落ち、その原因が「redirect が catch に飲まれた」である場合 — そのアクションは redirect 型。移行対象から外して報告。
-- `useFormState`/`useActionState` 連携の都合で `prevState` の型変更がクライアントコンポーネント側に波及し、3ファイル以上の修正が必要な場合。
+- `useActionState`連携の都合で`prevState`の型変更がクライアントコンポーネント側に波及し、3ファイル以上の修正が必要な場合。
 
 ## Maintenance notes
 
-- **strict mode 判断材料**: 有効化は React 18/19 移行の品質検査として価値があるが、開発時の副作用二重実行で既存コードの隠れバグが露見する可能性がある。React 19 アップグレード（Plan 010 Step 4）の前提作業として別途小プラン化を推奨。
+- **strict mode 判断材料**: App RouterのStrict ModeとReact 19移行は完了済み。Action helperを変更するときは`components/form/FormContainer.test.tsx`と`components/properties/PropertyMap.test.tsx`を回帰ゲートに含める。
 - 新規アクションを書くときは `authedAction`（return 型）か「redirect は try の外」（redirect 型)のどちらかに従うこと — 第三の形を増やさない。
 - レビュアーの重点: 各アクションの `revalidatePath` 引数と成功メッセージが移行前後で一字一句同じか。

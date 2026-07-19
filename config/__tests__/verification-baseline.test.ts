@@ -13,6 +13,24 @@ describe("verification baseline", () => {
 		expect(packageJson.scripts?.typecheck).toBe("tsc --noEmit");
 	});
 
+	it("validates Docker Compose without expanding or printing secrets", () => {
+		const packageJson = JSON.parse(
+			fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
+		) as { scripts?: Record<string, string> };
+		const agentInstructions = fs.readFileSync(
+			path.join(repoRoot, "AGENTS.md"),
+			"utf8"
+		);
+
+		expect(packageJson.scripts?.["compose:check"]).toBe(
+			"docker compose config --no-interpolate --quiet"
+		);
+		expect(agentInstructions).toContain("bun run compose:check");
+		expect(agentInstructions).toContain(
+			"オプションなしの`docker compose config`を実行しない"
+		);
+	});
+
 	it("runs the verification baseline in CI", () => {
 		const workflow = fs.readFileSync(
 			path.join(repoRoot, ".github", "workflows", "ci.yml"),
@@ -25,7 +43,8 @@ describe("verification baseline", () => {
 		expect(workflow).toContain("uses: oven-sh/setup-bun@v2");
 
 		const commands = [
-			"bun install --frozen-lockfile",
+			"bun ci",
+			"bun run compose:check",
 			"bunx prisma generate",
 			"bun run lint",
 			"bun run typecheck",
@@ -39,6 +58,21 @@ describe("verification baseline", () => {
 			expect(commandIndex).toBeGreaterThan(previousIndex);
 			previousIndex = commandIndex;
 		}
+	});
+
+	it("uses Bun as the only dependency lockfile", () => {
+		const packageJson = JSON.parse(
+			fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")
+		) as { packageManager?: string };
+		const dependabot = fs.readFileSync(
+			path.join(repoRoot, ".github", "dependabot.yml"),
+			"utf8"
+		);
+
+		expect(packageJson.packageManager).toBe("bun@1.3.12");
+		expect(fs.existsSync(path.join(repoRoot, "bun.lock"))).toBe(true);
+		expect(fs.existsSync(path.join(repoRoot, "package-lock.json"))).toBe(false);
+		expect(dependabot).toContain('package-ecosystem: "bun"');
 	});
 
 	it("provides a safe environment template", () => {

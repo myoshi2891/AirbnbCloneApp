@@ -18,7 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
+      - run: bun ci
+      - run: bun run compose:check
       - run: bunx prisma generate
       - run: bun run lint
       - run: bun run typecheck

@@ -63,14 +63,14 @@ graph TB
 
 | レイヤー | 技術 | 目的 |
 | ---------- | ------ | ------ |
-| フロントエンドフレームワーク | Next.js 15.5.12 | SSR/SSGを備えたフルスタックReactフレームワーク |
-| UIライブラリ | React 18.3.1 | コンポーネントベースのUIライブラリ |
+| フロントエンドフレームワーク | Next.js 15.5.18 | SSR/SSGを備えたフルスタックReactフレームワーク |
+| UIライブラリ | React 19.2.7 | コンポーネントベースのUIライブラリ |
 | UIコンポーネント | Radix UI | アクセシブルで、スタイルなしのコンポーネントプリミティブ |
 | スタイリング | Tailwind CSS | ユーティリティファーストのCSSフレームワーク |
 | 型安全性 | TypeScript 5.x | 静的型チェック |
 | データベースORM | Prisma 6.6.0 | 型安全なデータベースクライアント |
 | データベース | PostgreSQL | リレーショナルデータベース |
-| 認証 | Clerk 5.1.4 | ユーザー認証と管理 |
+| 認証 | Clerk 6.39.x | ユーザー認証と管理 |
 | 決済 | Stripe 15.12.0 | 決済処理 |
 | ファイルストレージ | Supabase | 画像のためのクラウドストレージ |
 | バリデーション | Zod 3.22.4 | スキーマ検証 |
@@ -258,17 +258,19 @@ flowchart LR
 #### Docker設定
 
 ```dockerfile
-FROM node:20-alpine
-RUN apk add --no-cache openssl tzdata
-ENV TZ=Asia/Tokyo
+FROM oven/bun:1.3.12-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm config set legacy-peer-deps true
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun ci
 COPY . .
-RUN npm run build
+RUN bun run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
 ```
 
 #### データベース設定
@@ -279,7 +281,11 @@ CMD ["npm", "run", "start"]
 
 #### 依存関係管理
 
+- **パッケージマネージャー**: Bun 1.3.12（`bun.lock` が唯一のロックファイル）
+- **再現可能インストール**: CI / Docker ともに `bun ci`
+- **Docker公開設定**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`、`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`、`NEXT_PUBLIC_WEBSITE_URL`をbuild argで渡す（サーバー用秘密値は渡さない）
 - **開発スクリプト**: `bun run dev`, `bun run build`
+- **Compose設定検証**: `bun run compose:check`（`.env`を展開・出力しない）
 - **データベーススクリプト**: `bun prisma generate`, `bun prisma migrate dev`（開発）, `bun prisma migrate deploy`（本番）
 - **型生成**: TypeScript および Prisma 型生成
 

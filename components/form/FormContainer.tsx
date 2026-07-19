@@ -1,7 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
-import { useEffect } from "react";
+import { useActionState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { actionFunction } from "@/utils/types";
 
@@ -9,6 +8,11 @@ const initialState = {
 	message: "",
 };
 
+/**
+ * Renders a form that submits through the provided action and displays action messages as toast notifications.
+ *
+ * @returns A form containing the provided child elements.
+ */
 function FormContainer({
 	action,
 	children,
@@ -16,7 +20,7 @@ function FormContainer({
 	action: actionFunction;
 	children: React.ReactNode;
 }) {
-	const [state, formAction] = useFormState(action, initialState);
+	const [state, formAction] = useActionState(action, initialState);
 	const { toast } = useToast();
 
 	useEffect(() => {

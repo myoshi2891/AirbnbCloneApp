@@ -91,6 +91,10 @@ describe("POST /api/payment", () => {
 		expect(mockCreate).toHaveBeenCalledWith(expect.any(Object), {
 			idempotencyKey: `checkout-session-${BOOKING_ID}-initial`,
 		});
+		const createArg = mockCreate.mock.calls[0][0];
+		expect(createArg.line_items[0].price_data.unit_amount).toBe(
+			mockBooking.orderTotal * 100
+		);
 	});
 
 	it("Embedded Checkout 用の return_url を設定する", async () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	mockCreateClient,
@@ -30,6 +30,8 @@ import { uploadImage } from "../supabase";
 describe("uploadImage", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.stubEnv("SUPABASE_URL", "https://storage.example");
+		vi.stubEnv("SUPABASE_KEY", "test-storage-key");
 		mockFrom.mockReturnValue({
 			upload: mockUpload,
 			getPublicUrl: mockGetPublicUrl,
@@ -39,6 +41,10 @@ describe("uploadImage", () => {
 		mockGetPublicUrl.mockReturnValue({
 			data: { publicUrl: "https://storage.example/images/uploaded.png" },
 		});
+	});
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
 	});
 
 	it("クライアントのファイル名を使わずにサーバー生成キーでアップロードする", async () => {
@@ -65,5 +71,15 @@ describe("uploadImage", () => {
 
 		await expect(uploadImage(image)).rejects.toBe(error);
 		expect(mockGetPublicUrl).not.toHaveBeenCalled();
+	});
+
+	it("ランタイムのストレージ設定がない場合は明示的に失敗する", async () => {
+		vi.stubEnv("SUPABASE_URL", "");
+		const image = new File(["png"], "image.png", { type: "image/png" });
+
+		await expect(uploadImage(image)).rejects.toThrow(
+			"Supabase storage is not configured"
+		);
+		expect(mockCreateClient).not.toHaveBeenCalled();
 	});
 });
