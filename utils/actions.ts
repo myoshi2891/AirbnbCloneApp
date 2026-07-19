@@ -1,6 +1,7 @@
 "use server";
 
 import {
+	createBookingSchema,
 	createReviewSchema,
 	imageSchema,
 	profileSchema,
@@ -230,9 +231,10 @@ export const toggleFavoriteAction = async (prevState: {
 
 	try {
 		if (favoriteId) {
-			await db.favorite.delete({
+			await db.favorite.deleteMany({
 				where: {
 					id: favoriteId,
+					profileId: user.id,
 				},
 			});
 		} else if (!favoriteId) {
@@ -422,43 +424,88 @@ export const createBookingAction = async (prevState: {
 	checkOut: Date;
 }) => {
 	const user = await getAuthUser();
-	await db.booking.deleteMany({
-		where: {
-			profileId: user.id,
-			paymentStatus: false,
-		},
-	});
-
 	let bookingId: null | string = null;
 
-	const { propertyId, checkIn, checkOut } = prevState;
-	const property = await db.property.findUnique({
-		where: { id: propertyId },
-		select: { price: true },
-	});
-	if (!property) {
-		return { message: "Property not found..." };
-	}
-
-	const { orderTotal, totalNights } = calculateTotals({
-		checkIn,
-		checkOut,
-		price: property.price,
-	});
-
 	try {
-		const booking = await db.booking.create({
-			data: {
-				checkIn,
-				checkOut,
-				propertyId,
-				profileId: user.id,
-				orderTotal,
-				totalNights,
-			},
+		const { propertyId, checkIn, checkOut } = validateWithZodSchema(
+			createBookingSchema,
+			prevState
+		);
+		const property = await db.property.findUnique({
+			where: { id: propertyId },
+			select: { price: true },
 		});
+		if (!property) {
+			return { message: "Property not found..." };
+		}
+
+		const { orderTotal, totalNights } = calculateTotals({
+			checkIn,
+			checkOut,
+			price: property.price,
+		});
+
+		const activeCheckoutSessionCutoff = new Date();
+		const booking = await db.$transaction(
+			async (tx) => {
+				await tx.booking.deleteMany({
+					where: {
+						profileId: user.id,
+						paymentStatus: false,
+						NOT: {
+							checkoutSessionId: { not: null },
+							checkoutSessionExpiresAt: {
+								gt: activeCheckoutSessionCutoff,
+							},
+						},
+					},
+				});
+
+				const conflict = await tx.booking.findFirst({
+					where: {
+						propertyId,
+						checkIn: { lt: checkOut },
+						checkOut: { gt: checkIn },
+						OR: [
+							{ paymentStatus: true },
+							{
+								paymentStatus: false,
+								checkoutSessionId: { not: null },
+								checkoutSessionExpiresAt: {
+									gt: activeCheckoutSessionCutoff,
+								},
+							},
+						],
+					},
+					select: { id: true },
+				});
+				if (conflict) {
+					throw new Error("Selected dates are no longer available");
+				}
+
+				return tx.booking.create({
+					data: {
+						checkIn,
+						checkOut,
+						propertyId,
+						profileId: user.id,
+						orderTotal,
+						totalNights,
+					},
+				});
+			},
+			{ isolationLevel: "Serializable" }
+		);
 		bookingId = booking.id;
 	} catch (error) {
+		if (
+			typeof error === "object" &&
+			error !== null &&
+			"code" in error &&
+			error.code === "P2034"
+		) {
+			return { message: "Please try again" };
+		}
 		return renderError(error);
 	}
 

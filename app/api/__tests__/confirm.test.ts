@@ -23,7 +23,7 @@ vi.mock("stripe", () => ({
 vi.mock("@/utils/db", () => ({
 	default: {
 		booking: {
-			update: vi.fn(),
+			updateMany: vi.fn(),
 		},
 	},
 }));
@@ -37,13 +37,14 @@ describe("GET /api/confirm", () => {
 		vi.clearAllMocks();
 	});
 
-	it("正常な session で booking を更新し redirect する", async () => {
+	it("complete かつ paid の session だけ booking を更新し redirect する", async () => {
 		mockRetrieve.mockResolvedValue({
 			status: "complete",
+			payment_status: "paid",
 			metadata: { bookingId: "booking-1" },
 		});
 
-		vi.mocked(db.booking.update).mockResolvedValue({} as never);
+		vi.mocked(db.booking.updateMany).mockResolvedValue({ count: 1 } as never);
 
 		const req = new NextRequest(
 			"http://localhost:3000/api/confirm?session_id=sess_123"
@@ -52,11 +53,30 @@ describe("GET /api/confirm", () => {
 		// redirect は Error をスローするので catch する
 		await expect(GET(req)).rejects.toThrow("NEXT_REDIRECT");
 
-		expect(db.booking.update).toHaveBeenCalledWith({
-			where: { id: "booking-1" },
+		expect(db.booking.updateMany).toHaveBeenCalledWith({
+			where: { id: "booking-1", paymentStatus: false },
 			data: { paymentStatus: true },
 		});
 		expect(mockRedirect).toHaveBeenCalledWith("/bookings");
+	});
+
+	it("complete でも unpaid の session は確定せず pending 画面へ redirect する", async () => {
+		mockRetrieve.mockResolvedValue({
+			status: "complete",
+			payment_status: "unpaid",
+			metadata: { bookingId: "booking-1" },
+		});
+
+		const req = new NextRequest(
+			"http://localhost:3000/api/confirm?session_id=sess_pending"
+		);
+
+		await expect(GET(req)).rejects.toThrow("NEXT_REDIRECT");
+
+		expect(db.booking.updateMany).not.toHaveBeenCalled();
+		expect(mockRedirect).toHaveBeenCalledWith(
+			"/checkout/pending?session_id=sess_pending"
+		);
 	});
 
 	it("session が complete でない場合は 500 を返す", async () => {

@@ -1,8 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
 	profileSchema,
 	propertySchema,
+	createBookingSchema,
 	createReviewSchema,
+	validateImageContent,
 	validateWithZodSchema,
 } from "../schemas";
 
@@ -105,3 +107,117 @@ describe("createReviewSchema", () => {
 		expect(result.success).toBe(false);
 	});
 });
+
+describe("createBookingSchema", () => {
+	it("有効な予約入力を受け付ける", () => {
+		// Arrange
+		const booking = {
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: new Date("2030-06-20"),
+			checkOut: new Date("2030-06-25"),
+		};
+
+		// Act
+		const result = createBookingSchema.safeParse(booking);
+
+		// Assert
+		expect(result.success).toBe(true);
+	});
+
+	it("checkOut が checkIn より前の予約入力を拒否する", () => {
+		// Arrange
+		const booking = {
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: new Date("2030-06-25"),
+			checkOut: new Date("2030-06-20"),
+		};
+
+		// Act
+		const result = createBookingSchema.safeParse(booking);
+
+		// Assert
+		expect(result.success).toBe(false);
+	});
+
+	it("事業タイムゾーンで過去の checkIn を拒否する", () => {
+		const yesterday = getBusinessDateOffset(-1);
+		const result = createBookingSchema.safeParse({
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: yesterday,
+			checkOut: getBusinessDateOffset(1),
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it("事業タイムゾーンで当日の checkIn を受け付ける", () => {
+		const today = getBusinessDateOffset(0);
+		const result = createBookingSchema.safeParse({
+			propertyId: "550e8400-e29b-41d4-a716-446655440000",
+			checkIn: today,
+			checkOut: getBusinessDateOffset(1),
+		});
+
+		expect(result.success).toBe(true);
+	});
+});
+
+describe("validateImageContent", () => {
+	it("declared MIME type と一致する PNG コンテンツを受け付ける", async () => {
+		const file = new File(
+			[new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+			"image.png",
+			{ type: "image/png" }
+		);
+
+		await expect(validateImageContent(file)).resolves.toBeUndefined();
+	});
+
+	it("偽装された MIME type の画像コンテンツを拒否する", async () => {
+		const file = new File(
+			[new Uint8Array([0xff, 0xd8, 0xff])],
+			"image.png",
+			{ type: "image/png" }
+		);
+
+		await expect(validateImageContent(file)).rejects.toThrow(
+			"File content does not match the declared image type"
+		);
+	});
+
+	it("先頭 12 バイトだけを読み込む", async () => {
+		const header = new Uint8Array([
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		]);
+		const slicedArrayBuffer = vi.fn(async () => header.buffer);
+		const slice = vi.fn(() => ({ arrayBuffer: slicedArrayBuffer }));
+		const fileArrayBuffer = vi.fn(() => {
+			throw new Error("The full file must not be read");
+		});
+		const file = {
+			type: "image/png",
+			slice,
+			arrayBuffer: fileArrayBuffer,
+		} as unknown as File;
+
+		await expect(validateImageContent(file)).resolves.toBeUndefined();
+
+		expect(slice).toHaveBeenCalledWith(0, 12);
+		expect(fileArrayBuffer).not.toHaveBeenCalled();
+	});
+});
+
+function getBusinessDateOffset(offset: number) {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: "Asia/Tokyo",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(new Date());
+	const part = (type: Intl.DateTimeFormatPartTypes) =>
+		Number(parts.find((item) => item.type === type)?.value);
+
+	return new Date(
+		Date.UTC(part("year"), part("month") - 1, part("day") + offset)
+	);
+}
