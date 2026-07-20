@@ -22,6 +22,29 @@ describe("validateWithZodSchema", () => {
 			ValidationError
 		);
 	});
+
+	it("複数の検証エラーのメッセージをカンマ区切りで結合する", () => {
+		// Arrange: 3フィールドすべてが min(2) に違反する
+		const data = { firstName: "J", lastName: "D", username: "j" };
+
+		// Act
+		const error = ((): unknown => {
+			try {
+				validateWithZodSchema(profileSchema, data);
+				return undefined;
+			} catch (reason) {
+				return reason;
+			}
+		})();
+
+		// Assert
+		expect(error).toBeInstanceOf(ValidationError);
+		const { message } = error as ValidationError;
+		expect(message.split(",")).toHaveLength(3);
+		expect(message).toContain("first name must be at least 2 characters");
+		expect(message).toContain("last name must be at least 2 characters");
+		expect(message).toContain("user name must be at least 2 characters");
+	});
 });
 
 describe("profileSchema", () => {
