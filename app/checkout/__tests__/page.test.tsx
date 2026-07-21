@@ -1,12 +1,24 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const mocks = vi.hoisted(() => ({
-	loadStripe: vi.fn(() => Promise.resolve({ stripe: "instance" })),
-	get: vi.fn<(key: string) => string | null>(() => "booking-1"),
-	// EmbeddedCheckoutProvider に渡された props を記録する
-	providerProps: [] as Array<Record<string, unknown>>,
-}));
+const mocks = vi.hoisted(() => {
+	const mockCreate = vi.fn();
+	class StripeMock {
+		checkout = {
+			sessions: {
+				create: mockCreate,
+			},
+		};
+	}
+	return {
+		StripeMock,
+		mockCreate,
+		loadStripe: vi.fn(() => Promise.resolve(new StripeMock())),
+		get: vi.fn<(key: string) => string | null>(() => "550e8400-e29b-41d4-a716-446655440001"),
+		// EmbeddedCheckoutProvider に渡された props を記録する
+		providerProps: [] as Array<Record<string, unknown>>,
+	};
+});
 
 vi.mock("@stripe/stripe-js", () => ({
 	loadStripe: mocks.loadStripe,
@@ -36,8 +48,12 @@ type ProviderOptions = { fetchClientSecret: () => Promise<string> };
 describe("CheckoutPage", () => {
 	beforeEach(() => {
 		mocks.providerProps.length = 0;
-		mocks.get.mockReturnValue("booking-1");
+		mocks.get.mockReturnValue("550e8400-e29b-41d4-a716-446655440001");
 		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
 	});
 
 	it("EmbeddedCheckout を Provider の子として描画する", () => {
@@ -63,7 +79,7 @@ describe("CheckoutPage", () => {
 
 	it("fetchClientSecret が URL の bookingId で client secret を取得する", async () => {
 		// Arrange
-		mocks.get.mockReturnValue("booking-42");
+		mocks.get.mockReturnValue("550e8400-e29b-41d4-a716-446655440042");
 		const fetchMock = vi.fn(async () => ({
 			ok: true,
 			status: 200,
@@ -82,11 +98,9 @@ describe("CheckoutPage", () => {
 			"/api/payment",
 			expect.objectContaining({
 				method: "POST",
-				body: JSON.stringify({ bookingId: "booking-42" }),
+				body: JSON.stringify({ bookingId: "550e8400-e29b-41d4-a716-446655440042" }),
 			})
 		);
-
-		vi.unstubAllGlobals();
 	});
 
 	it("bookingId が変わらない限り fetchClientSecret の参照を保つ", () => {
@@ -121,7 +135,5 @@ describe("CheckoutPage", () => {
 		await expect(options.fetchClientSecret()).rejects.toThrow(
 			"Failed to initialize checkout (500)"
 		);
-
-		vi.unstubAllGlobals();
 	});
 });
