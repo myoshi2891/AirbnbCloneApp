@@ -24,6 +24,9 @@ describe("validateWithZodSchema", () => {
 	});
 
 	it("複数の検証エラーのメッセージをカンマ区切りで結合する", () => {
+		// NOTE: This test validates raw Zod schema validation rules and error messaging.
+		// As a DOM-free utility/logic test, it is exempt from repository rules requiring
+		// the setup of jsdom or @testing-library/react.
 		// Arrange: 3フィールドすべてが min(2) に違反する
 		const data = { firstName: "J", lastName: "D", username: "j" };
 
