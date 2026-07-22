@@ -233,6 +233,34 @@ export const fetchFavoriteId = async ({
 	return favorite?.id || null;
 };
 
+export const fetchFavoriteIdsForProperties = async (propertyIds: string[]) => {
+	const { userId } = await auth();
+	if (!userId) {
+		return {
+			favoriteIds: new Map<string, string>(),
+			isSignedIn: false,
+		};
+	}
+
+	const favorites = await db.favorite.findMany({
+		where: {
+			propertyId: { in: propertyIds },
+			profileId: userId,
+		},
+		select: {
+			id: true,
+			propertyId: true,
+		},
+	});
+
+	return {
+		favoriteIds: new Map(
+			favorites.map((favorite) => [favorite.propertyId, favorite.id])
+		),
+		isSignedIn: true,
+	};
+};
+
 export const toggleFavoriteAction = async (prevState: {
 	propertyId: string;
 	favoriteId: string | null;
@@ -417,6 +445,31 @@ export async function fetchPropertyRating(propertyId: string) {
 		count: result[0]?._count.rating ?? 0,
 	};
 }
+
+export const fetchPropertyRatings = async (propertyIds: string[]) => {
+	const results = await db.review.groupBy({
+		by: ["propertyId"],
+		_avg: {
+			rating: true,
+		},
+		_count: {
+			rating: true,
+		},
+		where: {
+			propertyId: { in: propertyIds },
+		},
+	});
+
+	return new Map(
+		results.map((result) => [
+			result.propertyId,
+			{
+				rating: result._avg.rating?.toFixed(1) ?? 0,
+				count: result._count.rating,
+			},
+		])
+	);
+};
 
 export const findExistingReview = async (
 	userId: string,

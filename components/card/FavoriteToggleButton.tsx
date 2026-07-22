@@ -1,8 +1,4 @@
-import { FaHeart } from "react-icons/fa";
-import { Button } from "../ui/button";
-import { auth } from "@clerk/nextjs/server";
 import { CardSignInButton } from "../form/Buttons";
-import { fetchFavoriteId } from "@/utils/actions";
 import FavoriteToggleForm from "./FavoriteToggleForm";
 
 /**
@@ -11,11 +7,16 @@ import FavoriteToggleForm from "./FavoriteToggleForm";
  * @param propertyId - The identifier of the property to toggle as a favorite
  * @returns A React element: `FavoriteToggleForm` with the property's favorite id when the user is signed in, or `CardSignInButton` to prompt sign-in otherwise
  */
-async function FavoriteToggleButton({ propertyId }: { propertyId: string }) {
-	const { userId } = await auth();
-	if (!userId) return <CardSignInButton />;
-
-	const favoriteId = await fetchFavoriteId({ propertyId });
+function FavoriteToggleButton({
+	propertyId,
+	favoriteId,
+	isSignedIn,
+}: {
+	propertyId: string;
+	favoriteId: string | null;
+	isSignedIn: boolean;
+}) {
+	if (!isSignedIn) return <CardSignInButton />;
 
 	return (
 		<FavoriteToggleForm favoriteId={favoriteId} propertyId={propertyId} />

@@ -1,7 +1,12 @@
 import FavoriteToggleButton from "@/components/card/FavoriteToggleButton";
 import BreadCrumbs from "@/components/properties/BreadCrumbs";
 import ShareButton from "@/components/properties/ShareButton";
-import { fetchPropertyDetails, findExistingReview } from "@/utils/actions";
+import {
+	fetchFavoriteId,
+	fetchPropertyDetails,
+	fetchPropertyRating,
+	findExistingReview,
+} from "@/utils/actions";
 import { redirect } from "next/navigation";
 import ImageContainer from "@/components/properties/ImageContainer";
 import PropertyRating from "@/components/card/PropertyRating";
@@ -33,6 +38,10 @@ async function PropertyDetailsPage({
 	const profileImage = property.profile.profileImage;
 
 	const { userId } = await auth();
+	const [rating, favoriteId] = await Promise.all([
+		fetchPropertyRating(property.id),
+		userId ? fetchFavoriteId({ propertyId: property.id }) : Promise.resolve(null),
+	]);
 	const isNotOwner = property.profile.clerkId !== userId;
 	const reviewDoesNotExist =
 		userId &&
@@ -52,7 +61,11 @@ async function PropertyDetailsPage({
 						name={property.name}
 						propertyId={property.id}
 					/>
-					<FavoriteToggleButton propertyId={property.id} />
+					<FavoriteToggleButton
+						propertyId={property.id}
+						favoriteId={favoriteId}
+						isSignedIn={Boolean(userId)}
+					/>
 				</div>
 			</header>
 			<ImageContainer mainImage={property.image} name={property.name} />
@@ -60,7 +73,7 @@ async function PropertyDetailsPage({
 				<div className="lg:col-span-8">
 					<div className="flex gap-x-4 items-center">
 						<h1 className="text-xl font-bold">{property.name}</h1>
-						<PropertyRating inPage propertyId={property.id} />
+						<PropertyRating inPage {...rating} />
 					</div>
 					<PropertyDetails details={detail} />
 					<UserInfo profile={{ profileImage, firstName }} />
