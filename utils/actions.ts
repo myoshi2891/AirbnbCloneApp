@@ -11,7 +11,7 @@ import {
 } from "./schemas";
 import db from "./db";
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { uploadImage } from "./supabase";
 import { calculateTotals } from "./calculateTotals";
@@ -178,11 +178,56 @@ export const createPropertyAction = async (
 				profileId: user.id,
 			},
 		});
+		revalidateTag("properties");
 	} catch (error) {
 		return renderError(error);
 	}
 	redirect("/");
 };
+
+const fetchPropertiesCached = unstable_cache(
+	async ({
+		search,
+		category,
+		take,
+		skip,
+	}: {
+		search: string;
+		category?: string;
+		take: number;
+		skip: number;
+	}) => {
+		const properties = await db.property.findMany({
+			where: {
+				...(category ? { category } : {}),
+				OR: [
+					{ name: { contains: search, mode: "insensitive" } },
+					{ tagline: { contains: search, mode: "insensitive" } },
+				],
+			},
+			select: {
+				id: true,
+				name: true,
+				tagline: true,
+				country: true,
+				price: true,
+				image: true,
+			},
+			orderBy: {
+				createdAt: "desc",
+			},
+			take: take + 1,
+			skip,
+		});
+
+		return {
+			properties: properties.slice(0, take),
+			hasMore: properties.length > take,
+		};
+	},
+	["fetch-properties"],
+	{ tags: ["properties"], revalidate: 300 }
+);
 
 export const fetchProperties = async ({
 	search = "",
@@ -194,35 +239,7 @@ export const fetchProperties = async ({
 	category?: string;
 	take?: number;
 	skip?: number;
-}) => {
-	const properties = await db.property.findMany({
-		where: {
-			...(category ? { category } : {}),
-			OR: [
-				{ name: { contains: search, mode: "insensitive" } },
-				{ tagline: { contains: search, mode: "insensitive" } },
-			],
-		},
-		select: {
-			id: true,
-			name: true,
-			tagline: true,
-			country: true,
-			price: true,
-			image: true,
-		},
-		orderBy: {
-			createdAt: "desc",
-		},
-		take: take + 1,
-		skip,
-	});
-
-	return {
-		properties: properties.slice(0, take),
-		hasMore: properties.length > take,
-	};
-};
+}) => fetchPropertiesCached({ search, category, take, skip });
 
 export const fetchFavoriteId = async ({
 	propertyId,
@@ -695,6 +712,7 @@ export const deleteRentalAction = async (prevState: { propertyId: string }) => {
 				profileId: user.id,
 			},
 		});
+		revalidateTag("properties");
 		revalidatePath("/rentals");
 		return { message: "Rental deleted successfully!" };
 	} catch (error) {
@@ -730,6 +748,7 @@ export const updatePropertyAction = async (
 				...validatedFields,
 			},
 		});
+		revalidateTag("properties");
 		revalidatePath(`/rentals/${propertyId}/edit`);
 		return { message: "Update Successful!!" };
 	} catch (error) {
@@ -758,6 +777,7 @@ export const updatePropertyImageAction = async (
 			},
 		});
 
+		revalidateTag("properties");
 		revalidatePath(`/rentals/${propertyId}/edit`);
 		return { message: "Property Image Updated Successfully!!" };
 	} catch (error) {

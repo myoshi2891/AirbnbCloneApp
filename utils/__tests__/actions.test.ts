@@ -7,6 +7,8 @@ const {
 	mockDb,
 	mockRedirect,
 	mockRevalidatePath,
+	mockRevalidateTag,
+	mockUploadImage,
 	mockUpdateUserMetadata,
 } = vi.hoisted(() => ({
 	mockAuth: vi.fn(),
@@ -32,8 +34,11 @@ const {
 		},
 		property: {
 			count: vi.fn(),
+			create: vi.fn(),
+			delete: vi.fn(),
 			findMany: vi.fn(),
 			findUnique: vi.fn(),
+			update: vi.fn(),
 		},
 		review: {
 			create: vi.fn(),
@@ -45,31 +50,42 @@ const {
 		throw new Error(`REDIRECT:${url}`);
 	}),
 	mockRevalidatePath: vi.fn(),
+	mockRevalidateTag: vi.fn(),
+	mockUploadImage: vi.fn(),
 	mockUpdateUserMetadata: vi.fn(),
 }));
 
 vi.mock("@/utils/db", () => ({ default: mockDb }));
-vi.mock("@/utils/supabase", () => ({ uploadImage: vi.fn() }));
+vi.mock("@/utils/supabase", () => ({ uploadImage: mockUploadImage }));
 vi.mock("@clerk/nextjs/server", () => ({
 	auth: mockAuth,
 	clerkClient: mockClerkClient,
 	currentUser: mockCurrentUser,
 }));
-vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
+vi.mock("next/cache", () => ({
+	revalidatePath: mockRevalidatePath,
+	revalidateTag: mockRevalidateTag,
+	unstable_cache: (callback: (...args: unknown[]) => unknown) => callback,
+}));
 vi.mock("next/navigation", () => ({ redirect: mockRedirect }));
 
 import {
 	createBookingAction,
+	createPropertyAction,
 	createProfileAction,
 	createReviewAction,
 	deleteBookingAction,
 	deleteReviewAction,
+	deleteRentalAction,
 	fetchFavoriteIdsForProperties,
 	fetchBookings,
+	fetchProperties,
 	fetchPropertyRatings,
 	fetchRentals,
 	fetchStats,
 	toggleFavoriteAction,
+	updatePropertyAction,
+	updatePropertyImageAction,
 } from "@/utils/actions";
 
 const authenticatedUser = {
@@ -86,6 +102,9 @@ beforeEach(() => {
 	mockClerkClient.mockResolvedValue({
 		users: { updateUserMetadata: mockUpdateUserMetadata },
 	});
+	mockUploadImage.mockResolvedValue(
+		"https://storage.example/property/image.png"
+	);
 });
 
 afterEach(() => {
@@ -342,6 +361,30 @@ describe("favorite actions", () => {
 });
 
 describe("batched property queries", () => {
+	it("指定件数より1件多く取得してhasMoreを返す", async () => {
+		mockDb.property.findMany.mockResolvedValue(
+			Array.from({ length: 25 }, (_, index) => ({ id: `property_${index}` }))
+		);
+
+		const result = await fetchProperties({ take: 24, skip: 48 });
+
+		expect(result.properties).toHaveLength(24);
+		expect(result.hasMore).toBe(true);
+		expect(mockDb.property.findMany).toHaveBeenCalledWith(
+			expect.objectContaining({ take: 25, skip: 48 })
+		);
+	});
+
+	it("取得件数が指定件数以下ならhasMoreをfalseにする", async () => {
+		mockDb.property.findMany.mockResolvedValue(
+			Array.from({ length: 24 }, (_, index) => ({ id: `property_${index}` }))
+		);
+
+		await expect(fetchProperties({ take: 24 })).resolves.toMatchObject({
+			hasMore: false,
+		});
+	});
+
 	it("物件ごとの評価を1回のgroupByで取得する", async () => {
 		mockDb.review.groupBy.mockResolvedValue([
 			{
@@ -407,6 +450,56 @@ describe("batched property queries", () => {
 	});
 });
 
+describe("property cache invalidation", () => {
+	it("物件作成後にカタログキャッシュを失効する", async () => {
+		mockDb.property.create.mockResolvedValue({ id: "property_test_123" });
+
+		await expect(
+			createPropertyAction({}, createPropertyFormData())
+		).rejects.toThrow("REDIRECT:/");
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+
+	it("物件更新後にカタログキャッシュを失効する", async () => {
+		mockDb.property.update.mockResolvedValue({ id: "property_test_123" });
+		const formData = createPropertyFormData();
+		formData.set("id", "property_test_123");
+
+		await expect(updatePropertyAction({}, formData)).resolves.toEqual({
+			message: "Update Successful!!",
+		});
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+
+	it("物件画像更新後にカタログキャッシュを失効する", async () => {
+		mockDb.property.update.mockResolvedValue({ id: "property_test_123" });
+		const formData = new FormData();
+		formData.set("id", "property_test_123");
+		formData.set(
+			"image",
+			new File(["image"], "image.png", { type: "image/png" })
+		);
+
+		await expect(updatePropertyImageAction({}, formData)).resolves.toEqual({
+			message: "Property Image Updated Successfully!!",
+		});
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+
+	it("物件削除後にカタログキャッシュを失効する", async () => {
+		mockDb.property.delete.mockResolvedValue({ id: "property_test_123" });
+
+		await expect(
+			deleteRentalAction({ propertyId: "property_test_123" })
+		).resolves.toEqual({ message: "Rental deleted successfully!" });
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+});
+
 describe("review actions", () => {
 	it("creates a validated review for the authenticated user", async () => {
 		const formData = new FormData();
@@ -449,3 +542,26 @@ describe("review actions", () => {
 		expect(mockRevalidatePath).toHaveBeenCalledWith("/reviews");
 	});
 });
+
+function createPropertyFormData() {
+	const formData = new FormData();
+	formData.set("name", "Mountain Cabin");
+	formData.set("tagline", "Quiet cabin in the mountains");
+	formData.set("price", "100");
+	formData.set("category", "cabin");
+	formData.set(
+		"description",
+		"A quiet cabin with beautiful views and plenty of room for guests"
+	);
+	formData.set("country", "JP");
+	formData.set("guests", "4");
+	formData.set("bedrooms", "2");
+	formData.set("beds", "3");
+	formData.set("baths", "1");
+	formData.set("amenities", "wifi");
+	formData.set(
+		"image",
+		new File(["image"], "image.png", { type: "image/png" })
+	);
+	return formData;
+}
