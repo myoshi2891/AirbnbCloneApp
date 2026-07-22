@@ -326,7 +326,13 @@ export const fetchPropertyDetails = async (id: string) => {
 			id,
 		},
 		include: {
-			profile: true,
+			profile: {
+				select: {
+					firstName: true,
+					profileImage: true,
+					clerkId: true,
+				},
+			},
 			bookings: {
 				select: {
 					checkIn: true,
@@ -632,34 +638,24 @@ export const fetchRentals = async () => {
 		},
 	});
 
-	const rentalsWithBookingsSum = await Promise.all(
-		rentals.map(async (rental) => {
-			const totalNightSum = await db.booking.aggregate({
-				where: {
-					propertyId: rental.id,
-					paymentStatus: true,
-				},
-				_sum: {
-					totalNights: true,
-				},
-			});
-			const orderTotalSum = await db.booking.aggregate({
-				where: {
-					propertyId: rental.id,
-					paymentStatus: true,
-				},
-				_sum: {
-					orderTotal: true,
-				},
-			});
-			return {
-				...rental,
-				totalNightsSum: totalNightSum._sum.totalNights,
-				orderTotalSum: orderTotalSum._sum.orderTotal,
-			};
-		})
-	);
-	return rentalsWithBookingsSum;
+	const sums = await db.booking.groupBy({
+		by: ["propertyId"],
+		where: {
+			propertyId: { in: rentals.map((rental) => rental.id) },
+			paymentStatus: true,
+		},
+		_sum: {
+			totalNights: true,
+			orderTotal: true,
+		},
+	});
+	const sumMap = new Map(sums.map((sum) => [sum.propertyId, sum._sum]));
+
+	return rentals.map((rental) => ({
+		...rental,
+		totalNightsSum: sumMap.get(rental.id)?.totalNights ?? null,
+		orderTotalSum: sumMap.get(rental.id)?.orderTotal ?? null,
+	}));
 };
 
 export const deleteRentalAction = async (prevState: { propertyId: string }) => {
