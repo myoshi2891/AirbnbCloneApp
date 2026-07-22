@@ -36,7 +36,10 @@ export const uploadImage = async (image: File) => {
 	const newName = `${crypto.randomUUID()}.${extension}`;
 	const { data, error } = await supabase.storage
 		.from(bucket)
-		.upload(newName, image, { cacheControl: "3600" });
+		.upload(newName, image, {
+			cacheControl: "3600",
+			contentType: image.type,
+		});
 	if (error) throw error;
 	if (!data) throw new Error("Image upload failed");
 	return supabase.storage.from(bucket).getPublicUrl(newName).data.publicUrl;

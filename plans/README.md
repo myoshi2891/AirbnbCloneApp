@@ -20,7 +20,7 @@ effort=standard のためホットスポット重点であり、`components/` �
 | 004 | 重複予約のサーバー側防止 | P1 | M | 002 | DONE |
 | 005 | サーバーアクションのテストカバレッジ | P1 | L | 001 | DONE |
 | 006 | エラーハンドリング統一・リーク遮断 | P2 | M | 005 | DONE |
-| 007 | 画像アップロード強化 | P2 | S | 001 | TODO |
+| 007 | 画像アップロード強化 | P2 | S | 001 | DONE |
 | 008 | 物件グリッドの N+1 解消 | P2 | M | 005(推奨) | TODO |
 | 009 | ページネーションとキャッシュ | P3 | M | 008 | TODO |
 | 010 | 依存整合（残: Prisma / ESLint / Stripe。Bun・Clerkは完了） | P2 | M | 001 | TODO |
@@ -42,6 +42,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - 006 と 011 は 005 の後: `utils/actions.ts` のリファクタは特性テストという安全網を先に敷く（テストなしのリファクタは盲目出荷）。
 - 012 は 003 の後が効率的: webhook 実装後なら「Webhook で確定」という既存ドキュメント記述が真実になり、修正が小さい。003 を実施しない決定をした場合は 012 を先行させ「webhook ではない」旨に修正する。
 - 014 は 003 必須: サーバー権威の確定イベント（webhook）なしに状態機械は設計できない。
+- 007 のコード強化は完了。`SUPABASE_KEY` の anon/service_role 種別と `home-away-app` バケットの RLS/ポリシーは、値を出力せず Supabase ダッシュボードでオペレーターが確認する。service_role の場合は anon + INSERT ポリシーまたは署名付きアップロード URL へ移行する。
 - direction スパイク（013-016）の成果物は設計文書。本実装プランは各 outcome を入力に改めて起票する。
 
 ## 監査サマリー（vetted findings の出典）
