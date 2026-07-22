@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+	mockAuth,
 	mockCurrentUser,
 	mockClerkClient,
 	mockDb,
@@ -8,18 +9,22 @@ const {
 	mockRevalidatePath,
 	mockUpdateUserMetadata,
 } = vi.hoisted(() => ({
+	mockAuth: vi.fn(),
 	mockCurrentUser: vi.fn(),
 	mockClerkClient: vi.fn(),
 	mockDb: {
 		$transaction: vi.fn(),
 		booking: {
+			aggregate: vi.fn(),
 			count: vi.fn(),
 			delete: vi.fn(),
 			findMany: vi.fn(),
+			groupBy: vi.fn(),
 		},
 		favorite: {
 			create: vi.fn(),
 			deleteMany: vi.fn(),
+			findMany: vi.fn(),
 		},
 		profile: {
 			count: vi.fn(),
@@ -27,11 +32,13 @@ const {
 		},
 		property: {
 			count: vi.fn(),
+			findMany: vi.fn(),
 			findUnique: vi.fn(),
 		},
 		review: {
 			create: vi.fn(),
 			delete: vi.fn(),
+			groupBy: vi.fn(),
 		},
 	},
 	mockRedirect: vi.fn((url: string) => {
@@ -44,7 +51,7 @@ const {
 vi.mock("@/utils/db", () => ({ default: mockDb }));
 vi.mock("@/utils/supabase", () => ({ uploadImage: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({
-	auth: vi.fn(),
+	auth: mockAuth,
 	clerkClient: mockClerkClient,
 	currentUser: mockCurrentUser,
 }));
@@ -57,7 +64,10 @@ import {
 	createReviewAction,
 	deleteBookingAction,
 	deleteReviewAction,
+	fetchFavoriteIdsForProperties,
 	fetchBookings,
+	fetchPropertyRatings,
+	fetchRentals,
 	fetchStats,
 	toggleFavoriteAction,
 } from "@/utils/actions";
@@ -71,6 +81,7 @@ const authenticatedUser = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	mockAuth.mockResolvedValue({ userId: authenticatedUser.id });
 	mockCurrentUser.mockResolvedValue(authenticatedUser);
 	mockClerkClient.mockResolvedValue({
 		users: { updateUserMetadata: mockUpdateUserMetadata },
@@ -246,6 +257,45 @@ describe("booking actions", () => {
 });
 
 describe("favorite actions", () => {
+	it("未ログイン時は一括お気に入り取得でDBへアクセスしない", async () => {
+		mockAuth.mockResolvedValue({ userId: null });
+
+		await expect(
+			fetchFavoriteIdsForProperties(["property_test_123"])
+		).resolves.toEqual({
+			favoriteIds: new Map(),
+			isSignedIn: false,
+		});
+
+		expect(mockDb.favorite.findMany).not.toHaveBeenCalled();
+	});
+
+	it("ログイン時は対象物件のお気に入りを一括取得する", async () => {
+		mockDb.favorite.findMany.mockResolvedValue([
+			{ id: "favorite_test_123", propertyId: "property_test_123" },
+		]);
+
+		const result = await fetchFavoriteIdsForProperties([
+			"property_test_123",
+			"property_test_456",
+		]);
+
+		expect(mockDb.favorite.findMany).toHaveBeenCalledOnce();
+		expect(mockDb.favorite.findMany).toHaveBeenCalledWith({
+			where: {
+				propertyId: {
+					in: ["property_test_123", "property_test_456"],
+				},
+				profileId: authenticatedUser.id,
+			},
+			select: { id: true, propertyId: true },
+		});
+		expect(result.isSignedIn).toBe(true);
+		expect(result.favoriteIds.get("property_test_123")).toBe(
+			"favorite_test_123"
+		);
+	});
+
 	it("creates a favorite for the authenticated user", async () => {
 		mockDb.favorite.create.mockResolvedValue({ id: "favorite_test_123" });
 
@@ -288,6 +338,72 @@ describe("favorite actions", () => {
 		});
 		expect(mockDb.favorite.create).not.toHaveBeenCalled();
 		expect(mockRevalidatePath).toHaveBeenCalledWith("/favorites");
+	});
+});
+
+describe("batched property queries", () => {
+	it("物件ごとの評価を1回のgroupByで取得する", async () => {
+		mockDb.review.groupBy.mockResolvedValue([
+			{
+				propertyId: "property_test_123",
+				_avg: { rating: 4.25 },
+				_count: { rating: 3 },
+			},
+		]);
+
+		const ratings = await fetchPropertyRatings([
+			"property_test_123",
+			"property_test_456",
+		]);
+
+		expect(mockDb.review.groupBy).toHaveBeenCalledOnce();
+		expect(mockDb.review.groupBy).toHaveBeenCalledWith({
+			by: ["propertyId"],
+			_avg: { rating: true },
+			_count: { rating: true },
+			where: {
+				propertyId: {
+					in: ["property_test_123", "property_test_456"],
+				},
+			},
+		});
+		expect(ratings.get("property_test_123")).toEqual({
+			rating: "4.3",
+			count: 3,
+		});
+	});
+
+	it("rental集計を1回のgroupByで取得する", async () => {
+		mockDb.property.findMany.mockResolvedValue([
+			{ id: "property_test_123", name: "Cabin", price: 100 },
+			{ id: "property_test_456", name: "Cottage", price: 200 },
+		]);
+		mockDb.booking.groupBy.mockResolvedValue([
+			{
+				propertyId: "property_test_123",
+				_sum: { totalNights: 4, orderTotal: 400 },
+			},
+		]);
+
+		await expect(fetchRentals()).resolves.toEqual([
+			{
+				id: "property_test_123",
+				name: "Cabin",
+				price: 100,
+				totalNightsSum: 4,
+				orderTotalSum: 400,
+			},
+			{
+				id: "property_test_456",
+				name: "Cottage",
+				price: 200,
+				totalNightsSum: null,
+				orderTotalSum: null,
+			},
+		]);
+
+		expect(mockDb.booking.groupBy).toHaveBeenCalledOnce();
+		expect(mockDb.booking.aggregate).not.toHaveBeenCalled();
 	});
 });
 
