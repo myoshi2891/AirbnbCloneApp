@@ -13,17 +13,6 @@ const nextConfig = {
 			},
 		],
 	},
-	// webpackDevMiddleware: (config) => {
-	// 	config.watchOptions = {
-	// 		poll: 1000, // 1秒ごとに変更を確認
-	// 		aggregateTimeout: 300, // 変更検知後、再ビルド開始までの遅延
-	// 	};
-	// 	return config;
-	// },
-	// reactStrictMode: true,
-	// env: {
-	// 	CUSTOM_VARIABLE: "value",
-	// },
 };
 
 
