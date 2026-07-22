@@ -187,9 +187,13 @@ export const createPropertyAction = async (
 export const fetchProperties = async ({
 	search = "",
 	category,
+	take = 24,
+	skip = 0,
 }: {
 	search?: string;
 	category?: string;
+	take?: number;
+	skip?: number;
 }) => {
 	const properties = await db.property.findMany({
 		where: {
@@ -210,9 +214,14 @@ export const fetchProperties = async ({
 		orderBy: {
 			createdAt: "desc",
 		},
+		take: take + 1,
+		skip,
 	});
 
-	return properties;
+	return {
+		properties: properties.slice(0, take),
+		hasMore: properties.length > take,
+	};
 };
 
 export const fetchFavoriteId = async ({
@@ -297,7 +306,10 @@ export const toggleFavoriteAction = async (prevState: {
 	}
 };
 
-export const fetchFavorites = async () => {
+export const fetchFavorites = async ({
+	take = 50,
+	skip = 0,
+}: { take?: number; skip?: number } = {}) => {
 	const user = await getAuthUser();
 	const favorites = await db.favorite.findMany({
 		where: {
@@ -315,6 +327,8 @@ export const fetchFavorites = async () => {
 				},
 			},
 		},
+		take,
+		skip,
 	});
 
 	return favorites.map((favorite) => favorite.property);
@@ -371,7 +385,13 @@ export const createReviewAction = async (
 	}
 };
 
-export const fetchPropertyReviews = async (propertyId: string) => {
+export const fetchPropertyReviews = async (
+	propertyId: string,
+	{
+		take = 50,
+		skip = 0,
+	}: { take?: number; skip?: number } = {}
+) => {
 	const reviews = await db.review.findMany({
 		where: {
 			propertyId,
@@ -390,6 +410,8 @@ export const fetchPropertyReviews = async (propertyId: string) => {
 		orderBy: {
 			createdAt: "desc",
 		},
+		take,
+		skip,
 	});
 	return reviews;
 };
@@ -585,7 +607,10 @@ export const createBookingAction = async (prevState: {
 	redirect(`/checkout/?bookingId=${bookingId}`);
 };
 
-export const fetchBookings = async () => {
+export const fetchBookings = async ({
+	take = 50,
+	skip = 0,
+}: { take?: number; skip?: number } = {}) => {
 	const user = await getAuthUser();
 	const bookings = await db.booking.findMany({
 		where: {
@@ -604,6 +629,8 @@ export const fetchBookings = async () => {
 		orderBy: {
 			createdAt: "asc",
 		},
+		take,
+		skip,
 	});
 	return bookings;
 };
@@ -738,7 +765,10 @@ export const updatePropertyImageAction = async (
 	}
 };
 
-export const fetchReservations = async () => {
+export const fetchReservations = async ({
+	take = 50,
+	skip = 0,
+}: { take?: number; skip?: number } = {}) => {
 	const user = await getAuthUser();
 
 	const reservations = await db.booking.findMany({
@@ -761,6 +791,8 @@ export const fetchReservations = async () => {
 				},
 			},
 		},
+		take,
+		skip,
 	});
 	return reservations;
 };

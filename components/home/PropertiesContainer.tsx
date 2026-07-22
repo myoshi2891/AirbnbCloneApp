@@ -9,7 +9,10 @@ async function PropertiesContainer({
 	category?: string;
 	search?: string;
 }) {
-	const properties: PropertyCardProps[] = await fetchProperties({
+	const { properties, hasMore: _hasMore }: {
+		properties: PropertyCardProps[];
+		hasMore: boolean;
+	} = await fetchProperties({
 		category,
 		search,
 	});
