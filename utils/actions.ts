@@ -41,6 +41,19 @@ const renderError = (error: unknown): { message: string } => {
 	return { message: "An unexpected error occurred. Please try again." };
 };
 
+type ActionResult = { message: string };
+
+const authedAction = async (
+	fn: (user: Awaited<ReturnType<typeof getAuthUser>>) => Promise<ActionResult>
+): Promise<ActionResult> => {
+	const user = await getAuthUser();
+	try {
+		return await fn(user);
+	} catch (error) {
+		return renderError(error);
+	}
+};
+
 export const createProfileAction = async (
 	prevState: any,
 	formData: FormData
