@@ -377,11 +377,10 @@ export const fetchPropertyDetails = async (id: string) => {
 };
 
 export const createReviewAction = async (
-	prevState: any,
+	prevState: unknown,
 	formData: FormData
-) => {
-	const user = await getAuthUser();
-	try {
+) =>
+	authedAction(async (user) => {
 		const rawData = Object.fromEntries(formData);
 		const validatedFields = validateWithZodSchema(
 			createReviewSchema,
@@ -397,10 +396,7 @@ export const createReviewAction = async (
 		revalidatePath(`/properties/${validatedFields.propertyId}`);
 
 		return { message: "Review submitted successfully!" };
-	} catch (error) {
-		return renderError(error);
-	}
-};
+	});
 
 export const fetchPropertyReviews = async (
 	propertyId: string,
@@ -456,8 +452,7 @@ export const fetchPropertyReviewsByUser = async () => {
 
 export const deleteReviewAction = async (prevState: { reviewId: string }) => {
 	const { reviewId } = prevState;
-	const user = await getAuthUser();
-	try {
+	return authedAction(async (user) => {
 		await db.review.delete({
 			where: {
 				id: reviewId,
@@ -466,9 +461,7 @@ export const deleteReviewAction = async (prevState: { reviewId: string }) => {
 		});
 		revalidatePath("/reviews");
 		return { message: "delete reviews" };
-	} catch (error) {
-		return renderError(error);
-	}
+	});
 };
 
 export async function fetchPropertyRating(propertyId: string) {
@@ -654,8 +647,7 @@ export const fetchBookings = async ({
 
 export const deleteBookingAction = async (prevState: { bookingId: string }) => {
 	const { bookingId } = prevState;
-	const user = await getAuthUser();
-	try {
+	return authedAction(async (user) => {
 		const result = await db.booking.delete({
 			where: {
 				id: bookingId,
@@ -664,9 +656,7 @@ export const deleteBookingAction = async (prevState: { bookingId: string }) => {
 		});
 		revalidatePath("/bookings");
 		return { message: "Booking deleted successfully!" };
-	} catch (error) {
-		return renderError(error);
-	}
+	});
 };
 
 export const fetchRentals = async () => {
