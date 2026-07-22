@@ -7,6 +7,8 @@ improve スキルによるコードベース監査（effort: standard、全9カ�
 実行者へ: プランを最後まで読んでから着手し、STOP conditions を尊重し、完了時に自分の行を更新すること。
 下の順序で実行する（依存が許す範囲で並べ替え可）。
 
+Plan 001–016完了後の運用作業、本実装、技術負債は[Remaining Work and Next Actions](./NEXT_ACTIONS.md)で管理する。
+
 監査範囲の注記: `components/ui/`（shadcn 生成コード）と `node_modules` は監査対象外。
 effort=standard のためホットスポット重点であり、`components/` の全 UI コンポーネントの網羅精査はしていない。
 
