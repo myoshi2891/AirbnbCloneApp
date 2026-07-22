@@ -122,12 +122,10 @@ export const fetchProfile = async () => {
 };
 
 export const updateProfileAction = async (
-	prevState: any,
+	prevState: unknown,
 	formData: FormData
-): Promise<{ message: string }> => {
-	const user = await getAuthUser();
-
-	try {
+): Promise<{ message: string }> =>
+	authedAction(async (user) => {
 		const rawData = Object.fromEntries(formData);
 		const validatedFields = validateWithZodSchema(profileSchema, rawData);
 
@@ -139,18 +137,13 @@ export const updateProfileAction = async (
 		});
 		revalidatePath("/profile");
 		return { message: "Profile updated successfully!" };
-	} catch (error) {
-		return renderError(error);
-	}
-};
+	});
 
 export const updateProfileImageAction = async (
-	prevState: any,
+	prevState: unknown,
 	formData: FormData
-): Promise<{ message: string }> => {
-	const user = await getAuthUser();
-
-	try {
+): Promise<{ message: string }> =>
+	authedAction(async (user) => {
 		const image = formData.get("image") as File;
 		const validatedFields = validateWithZodSchema(imageSchema, { image });
 		const fullPath = await uploadImage(validatedFields.image);
@@ -166,10 +159,7 @@ export const updateProfileImageAction = async (
 		revalidatePath("/profile");
 
 		return { message: "Profile image updated successfully!" };
-	} catch (error) {
-		return renderError(error);
-	}
-};
+	});
 export const createPropertyAction = async (
 	prevState: any,
 	formData: FormData
@@ -305,10 +295,9 @@ export const toggleFavoriteAction = async (prevState: {
 	favoriteId: string | null;
 	pathname: string;
 }) => {
-	const user = await getAuthUser();
 	const { propertyId, favoriteId, pathname } = prevState;
 
-	try {
+	return authedAction(async (user) => {
 		if (favoriteId) {
 			await db.favorite.deleteMany({
 				where: {
@@ -331,9 +320,7 @@ export const toggleFavoriteAction = async (prevState: {
 				? "Removed from favorites"
 				: "Added to favorites",
 		};
-	} catch (error) {
-		return renderError(error);
-	}
+	});
 };
 
 export const fetchFavorites = async ({
