@@ -25,7 +25,7 @@ effort=standard のためホットスポット重点であり、`components/` �
 | 009 | ページネーションとキャッシュ | P3 | M | 008 | DONE |
 | 010 | 依存整合（Prisma / ESLint / Stripe。Bun・Clerk含め完了） | P2 | M | 001 | DONE |
 | 011 | アクションのボイラープレート統合 | P3 | M | 005, 006 | DONE |
-| 012 | ドキュメント精度（README/CLAUDE.md） | P2 | S | 003(推奨) | TODO |
+| 012 | ドキュメント精度（README/CLAUDE.md） | P2 | S | 003(推奨) | DONE |
 | 013 | スパイク: 画像ギャラリー + 実座標マップ | P3 | M | 007 | TODO |
 | 014 | スパイク: 予約ライフサイクル（enum/返金） | P3 | M | 003 | TODO |
 | 015 | スパイク: ファセット検索 | P3 | S-M | 009(推奨) | TODO |
