@@ -2,7 +2,9 @@ import Stripe from "stripe";
 import { type NextRequest, NextResponse } from "next/server";
 import db from "@/utils/db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+	apiVersion: "2024-04-10",
+});
 
 export const POST = async (req: NextRequest) => {
 	const signature = req.headers.get("stripe-signature");
