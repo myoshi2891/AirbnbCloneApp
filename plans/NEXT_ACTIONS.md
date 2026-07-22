@@ -41,6 +41,8 @@ NA-009 リリースは、NA-001/002の実施方針を確定してから行う
 
 ## NA-001: Checkout追跡migrationの適用
 
+オペレーター向けの実行前確認、適用、Stripeスモーク、失敗時対応、完了記録は[NA-001 Checkout追跡migration 運用指示書](./NA-001-checkout-migration-runbook.md)に従う。
+
 ### 現状
 
 `prisma/migrations/20260719000000_add_checkout_session_tracking/migration.sql`は、Bookingへ次のnullable列を追加するだけのadditive migrationである。
