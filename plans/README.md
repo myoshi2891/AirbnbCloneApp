@@ -29,7 +29,7 @@ effort=standard のためホットスポット重点であり、`components/` �
 | 013 | スパイク: 画像ギャラリー + 実座標マップ | P3 | M | 007 | DONE |
 | 014 | スパイク: 予約ライフサイクル（enum/返金） | P3 | M | 003 | DONE |
 | 015 | スパイク: ファセット検索 | P3 | S-M | 009(推奨) | DONE |
-| 016 | スパイク: レビュー信頼性 + メッセージング | P3 | M | — | TODO |
+| 016 | スパイク: レビュー信頼性 + メッセージング | P3 | M | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
