@@ -6,14 +6,28 @@ import { Suspense } from "react";
 async function HomePage({
 	searchParams,
 }: {
-	searchParams: Promise<{ category?: string; search?: string }>;
+	searchParams: Promise<{
+		category?: string | string[];
+		search?: string | string[];
+		page?: string | string[];
+	}>;
 }) {
-	const { category, search } = await searchParams;
+	const { category, search, page } = await searchParams;
+	const normalizedCategory =
+		typeof category === "string" ? category : undefined;
+	const normalizedSearch = typeof search === "string" ? search : undefined;
 	return (
 		<section>
-			<CategoriesList category={category} search={search} />
+			<CategoriesList
+				category={normalizedCategory}
+				search={normalizedSearch}
+			/>
 			<Suspense fallback={<LoadingCards />}>
-				<PropertiesContainer category={category} search={search} />
+				<PropertiesContainer
+					category={normalizedCategory}
+					search={normalizedSearch}
+					page={page}
+				/>
 			</Suspense>
 		</section>
 	);

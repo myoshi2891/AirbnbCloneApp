@@ -14,6 +14,7 @@ function NavSearch() {
 
 	const handleSearch = useDebouncedCallback((value: string) => {
 		const params = new URLSearchParams(searchParams);
+		params.delete("page");
 		if (value) {
 			params.set("search", value);
 		} else {

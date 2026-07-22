@@ -5,6 +5,7 @@ import {
 	createBookingSchema,
 	createReviewSchema,
 	imageSchema,
+	pageSchema,
 	ValidationError,
 	validateImageContent,
 	validateWithZodSchema,
@@ -273,6 +274,19 @@ describe("imageSchema", () => {
 
 		expect(imageSchema.safeParse({ image }).success).toBe(false);
 	});
+});
+
+describe("pageSchema", () => {
+	it.each([1, "1", 100, "100"])("有効なページ %s を受け付ける", (page) => {
+		expect(pageSchema.safeParse(page).success).toBe(true);
+	});
+
+	it.each([0, -1, 1.5, "abc", 101])(
+		"無効なページ %s を拒否する",
+		(page) => {
+			expect(pageSchema.safeParse(page).success).toBe(false);
+		}
+	);
 });
 
 function getBusinessDateOffset(offset: number) {
