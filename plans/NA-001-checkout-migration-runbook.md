@@ -224,13 +224,27 @@ WHERE "id" = '<テストBooking ID>';
 4. Stripe Dashboardで、対象イベントのWebhook deliveryが2xxであることを確認する。
 5. DB管理画面で対象Bookingの`paymentStatus`が`true`であることだけを確認する。Booking行全体やSession IDは記録へ貼らない。
 
-### 8.3 Webhook再送の冪等性
+### 8.3 非同期成功webhook
 
-1. Stripe Dashboardの対象`checkout.session.completed`イベントを同じendpointへ再送する。Stripe CLIを承認済みで使用する場合は、公式手順の`stripe events resend`を使う。
-2. 再送が2xxとなることを確認する。
-3. 予約一覧に重複が増えず、同じBookingが支払い済みのままであることを確認する。
+1. 8.2とは別に未払いのテストBookingを1件作り、対象Booking IDだけを安全な作業メモへ控える。
+2. Stripe sandboxのテストfixtureで`checkout.session.async_payment_succeeded`イベントを用意する。`data.object.payment_status`は`paid`、`data.object.metadata.bookingId`は対象Booking IDにする。署名検証を通すため、手書きJSONを直接POSTせず、Stripe Dashboardまたは承認済みStripe CLIから送信する。
+3. migrationを適用した環境のWebhook endpointへテストイベントを送信する。
+4. Stripe DashboardまたはCLIのdelivery結果でWebhook応答が2xxであることを確認する。
+5. DB管理画面で次だけを照合し、`payment_status_is_true = true`を確認する。Booking行全体、Session ID、イベントpayloadは記録へ貼らない。
 
-### 8.4 スモークテストの後始末
+```sql
+SELECT "paymentStatus" IS TRUE AS "payment_status_is_true"
+FROM "Booking"
+WHERE "id" = '<非同期成功テストBooking ID>';
+```
+
+### 8.4 Webhook再送の冪等性
+
+1. Stripe Dashboardの対象`checkout.session.completed`イベントと8.3の`checkout.session.async_payment_succeeded`イベントを、それぞれ同じendpointへ再送する。Stripe CLIを承認済みで使用する場合は、公式手順の`stripe events resend`を使う。
+2. 両方の再送が2xxとなることを確認する。
+3. 予約一覧に重複が増えず、各Bookingが支払い済みのままであることを確認する。
+
+### 8.5 スモークテストの後始末
 
 - テストBookingを削除する場合は、既存UIまたは承認済み管理手順を使う。
 - Stripe上のtest objectは実課金を伴わないため、監査要件がなければそのまま残してよい。
