@@ -114,7 +114,24 @@ Profile、Property、Bookingへ対応するback relationを追加する。Conver
 - `conversationParticipant(userId, conversationId)`は`OR: [{ guestId: userId }, { hostId: userId }]`を含むfindFirstで毎回確認する。
 - `sendMessageAction`は本文をtrimし1–2000文字でZod検証し、participant確認、Message作成、`lastMessageAt`更新をtransactionで行う。
 - `fetchConversationMessages`はparticipant確認後、50件のcursor paginationで返す。senderは表示名・画像だけselectする。
-- `markConversationReadAction`は`senderId != user.id AND readAt IS NULL`だけをupdateManyする。
+- `markConversationReadAction`は次の会話単位かつ参加者限定の条件を同じ`updateMany`の`where`に指定する。これにより、対象ユーザーが参加していない会話のMessageは更新しない。
+
+  ```ts
+  await db.message.updateMany({
+    where: {
+      conversationId,
+      readAt: null,
+      senderId: { not: user.id },
+      conversation: {
+        is: {
+          OR: [{ guestId: user.id }, { hostId: user.id }],
+        },
+      },
+    },
+    data: { readAt: new Date() },
+  });
+  ```
+
 - v1ではメッセージ編集・削除・添付・メール通知を実装しない。本文はMarkdown/HTMLへ変換せずプレーンテキスト表示する。
 
 ## 6. 配信方式
