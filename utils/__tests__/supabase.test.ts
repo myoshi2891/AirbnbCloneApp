@@ -62,6 +62,24 @@ describe("uploadImage", () => {
 			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/
 		);
 		expect(objectKey).not.toContain(image.name);
+		expect(mockUpload).toHaveBeenCalledWith(objectKey, image, {
+			cacheControl: "3600",
+			contentType: "image/png",
+		});
+	});
+
+	it("コンテンツ検証に失敗したファイルをアップロードしない", async () => {
+		const image = new File(["not an image"], "image.png", {
+			type: "image/png",
+		});
+		mockValidateImageContent.mockRejectedValue(
+			new Error("invalid image content")
+		);
+
+		await expect(uploadImage(image)).rejects.toThrow("invalid image content");
+
+		expect(mockCreateClient).not.toHaveBeenCalled();
+		expect(mockUpload).not.toHaveBeenCalled();
 	});
 
 	it("Supabase の upload error をそのまま送出する", async () => {

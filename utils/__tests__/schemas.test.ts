@@ -4,6 +4,8 @@ import {
 	propertySchema,
 	createBookingSchema,
 	createReviewSchema,
+	imageSchema,
+	pageSchema,
 	ValidationError,
 	validateImageContent,
 	validateWithZodSchema,
@@ -217,6 +219,16 @@ describe("validateImageContent", () => {
 		);
 	});
 
+	it("画像 MIME type を名乗る任意テキストを拒否する", async () => {
+		const file = new File(["not an image"], "image.png", {
+			type: "image/png",
+		});
+
+		await expect(validateImageContent(file)).rejects.toBeInstanceOf(
+			ValidationError
+		);
+	});
+
 	it("先頭 12 バイトだけを読み込む", async () => {
 		const header = new Uint8Array([
 			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -237,6 +249,44 @@ describe("validateImageContent", () => {
 		expect(slice).toHaveBeenCalledWith(0, 12);
 		expect(fileArrayBuffer).not.toHaveBeenCalled();
 	});
+});
+
+describe("imageSchema", () => {
+	it("許可された PNG を受け付ける", () => {
+		const image = new File(["png"], "image.png", { type: "image/png" });
+
+		expect(imageSchema.safeParse({ image }).success).toBe(true);
+	});
+
+	it.each(["image/svg+xml", "application/pdf"])(
+		"許可されていない %s を拒否する",
+		(type) => {
+			const image = new File(["content"], "upload", { type });
+
+			expect(imageSchema.safeParse({ image }).success).toBe(false);
+		}
+	);
+
+	it("1 MB を超える画像を拒否する", () => {
+		const image = new File([new Uint8Array(1024 * 1024 + 1)], "large.png", {
+			type: "image/png",
+		});
+
+		expect(imageSchema.safeParse({ image }).success).toBe(false);
+	});
+});
+
+describe("pageSchema", () => {
+	it.each([1, "1", 100, "100"])("有効なページ %s を受け付ける", (page) => {
+		expect(pageSchema.safeParse(page).success).toBe(true);
+	});
+
+	it.each([0, -1, 1.5, "abc", 101])(
+		"無効なページ %s を拒否する",
+		(page) => {
+			expect(pageSchema.safeParse(page).success).toBe(false);
+		}
+	);
 });
 
 function getBusinessDateOffset(offset: number) {

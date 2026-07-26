@@ -158,6 +158,8 @@ export const createReviewSchema = z.object({
 	comment: z.string().min(10).max(1000),
 });
 
+export const pageSchema = z.coerce.number().int().min(1).max(100);
+
 export const createBookingSchema = z
 	.object({
 		propertyId: z.string().uuid(),

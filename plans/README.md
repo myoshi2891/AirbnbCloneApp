@@ -7,6 +7,8 @@ improve スキルによるコードベース監査（effort: standard、全9カ�
 実行者へ: プランを最後まで読んでから着手し、STOP conditions を尊重し、完了時に自分の行を更新すること。
 下の順序で実行する（依存が許す範囲で並べ替え可）。
 
+Plan 001–016完了後の運用作業、本実装、技術負債は[Remaining Work and Next Actions](./NEXT_ACTIONS.md)で管理する。
+
 監査範囲の注記: `components/ui/`（shadcn 生成コード）と `node_modules` は監査対象外。
 effort=standard のためホットスポット重点であり、`components/` の全 UI コンポーネントの網羅精査はしていない。
 
@@ -20,16 +22,16 @@ effort=standard のためホットスポット重点であり、`components/` �
 | 004 | 重複予約のサーバー側防止 | P1 | M | 002 | DONE |
 | 005 | サーバーアクションのテストカバレッジ | P1 | L | 001 | DONE |
 | 006 | エラーハンドリング統一・リーク遮断 | P2 | M | 005 | DONE |
-| 007 | 画像アップロード強化 | P2 | S | 001 | TODO |
-| 008 | 物件グリッドの N+1 解消 | P2 | M | 005(推奨) | TODO |
-| 009 | ページネーションとキャッシュ | P3 | M | 008 | TODO |
-| 010 | 依存整合（残: Prisma / ESLint / Stripe。Bun・Clerkは完了） | P2 | M | 001 | TODO |
-| 011 | アクションのボイラープレート統合 | P3 | M | 005, 006 | TODO |
-| 012 | ドキュメント精度（README/CLAUDE.md） | P2 | S | 003(推奨) | TODO |
-| 013 | スパイク: 画像ギャラリー + 実座標マップ | P3 | M | 007 | TODO |
-| 014 | スパイク: 予約ライフサイクル（enum/返金） | P3 | M | 003 | TODO |
-| 015 | スパイク: ファセット検索 | P3 | S-M | 009(推奨) | TODO |
-| 016 | スパイク: レビュー信頼性 + メッセージング | P3 | M | — | TODO |
+| 007 | 画像アップロード強化 | P2 | S | 001 | DONE |
+| 008 | 物件グリッドの N+1 解消 | P2 | M | 005(推奨) | DONE |
+| 009 | ページネーションとキャッシュ | P3 | M | 008 | DONE |
+| 010 | 依存整合（Prisma / ESLint / Stripe。Bun・Clerk含め完了） | P2 | M | 001 | DONE |
+| 011 | アクションのボイラープレート統合 | P3 | M | 005, 006 | DONE |
+| 012 | ドキュメント精度（README/CLAUDE.md） | P2 | S | 003(推奨) | DONE |
+| 013 | スパイク: 画像ギャラリー + 実座標マップ | P3 | M | 007 | DONE |
+| 014 | スパイク: 予約ライフサイクル（enum/返金） | P3 | M | 003 | DONE |
+| 015 | スパイク: ファセット検索 | P3 | S-M | 009(推奨) | DONE |
+| 016 | スパイク: レビュー信頼性 + メッセージング | P3 | M | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -38,10 +40,14 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - **001 が全プランの前提**: typecheck スクリプトと CI がないと、どのプランも Done criteria を機械検証できない。
 - 2026-07-19以降、依存管理はBun 1.3.12と`bun.lock`へ一本化。Plan 001/010の二重ロックファイル記述は廃止済み。
 - React 19、`useActionState`、React Leaflet v5への移行は`96dbda4`で完了。Strict Modeの地図ライフサイクルとフォームActionは`22dfb3e`、`2e411d6`で回帰テスト済み。
+- ESLint 9 / flat config は別プランで行う。Next.js 15はESLint 9をサポートするが、`next lint`廃止に備えて`.eslintrc.json`を`eslint.config.mjs`へ移し、lint scriptをESLint CLIへ切り替えてからNext.js 16へ進む。
+- StripeサーバーSDKの次期メジャー更新は別プランで行う。v18以降は既定API versionの変更を伴うため、Checkout Sessionのcreate/retrieveとraw bodyを使う`constructEvent`を各メジャー境界で回帰確認する。
+- Prisma CLI/clientは6.6.0へ整合済み。`prisma migrate status`では既存の`20260719000000_add_checkout_session_tracking`が未適用と確認したが、本プランではDB変更を行わない。
 - 004 は 002 の後: 重複チェックは検証済みの日付入力（`createBookingSchema`）を前提にする。
 - 006 と 011 は 005 の後: `utils/actions.ts` のリファクタは特性テストという安全網を先に敷く（テストなしのリファクタは盲目出荷）。
 - 012 は 003 の後が効率的: webhook 実装後なら「Webhook で確定」という既存ドキュメント記述が真実になり、修正が小さい。003 を実施しない決定をした場合は 012 を先行させ「webhook ではない」旨に修正する。
 - 014 は 003 必須: サーバー権威の確定イベント（webhook）なしに状態機械は設計できない。
+- 007 のコード強化は完了。`SUPABASE_KEY` の anon/service_role 種別と `home-away-app` バケットの RLS/ポリシーは、値を出力せず Supabase ダッシュボードでオペレーターが確認する。service_role の場合は anon + INSERT ポリシーまたは署名付きアップロード URL へ移行する。
 - direction スパイク（013-016）の成果物は設計文書。本実装プランは各 outcome を入力に改めて起票する。
 
 ## 監査サマリー（vetted findings の出典）

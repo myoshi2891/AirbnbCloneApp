@@ -1,25 +1,32 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+	mockAuth,
 	mockCurrentUser,
 	mockClerkClient,
 	mockDb,
 	mockRedirect,
 	mockRevalidatePath,
+	mockRevalidateTag,
+	mockUploadImage,
 	mockUpdateUserMetadata,
 } = vi.hoisted(() => ({
+	mockAuth: vi.fn(),
 	mockCurrentUser: vi.fn(),
 	mockClerkClient: vi.fn(),
 	mockDb: {
 		$transaction: vi.fn(),
 		booking: {
+			aggregate: vi.fn(),
 			count: vi.fn(),
 			delete: vi.fn(),
 			findMany: vi.fn(),
+			groupBy: vi.fn(),
 		},
 		favorite: {
 			create: vi.fn(),
 			deleteMany: vi.fn(),
+			findMany: vi.fn(),
 		},
 		profile: {
 			count: vi.fn(),
@@ -27,39 +34,58 @@ const {
 		},
 		property: {
 			count: vi.fn(),
+			create: vi.fn(),
+			delete: vi.fn(),
+			findMany: vi.fn(),
 			findUnique: vi.fn(),
+			update: vi.fn(),
 		},
 		review: {
 			create: vi.fn(),
 			delete: vi.fn(),
+			groupBy: vi.fn(),
 		},
 	},
 	mockRedirect: vi.fn((url: string) => {
 		throw new Error(`REDIRECT:${url}`);
 	}),
 	mockRevalidatePath: vi.fn(),
+	mockRevalidateTag: vi.fn(),
+	mockUploadImage: vi.fn(),
 	mockUpdateUserMetadata: vi.fn(),
 }));
 
 vi.mock("@/utils/db", () => ({ default: mockDb }));
-vi.mock("@/utils/supabase", () => ({ uploadImage: vi.fn() }));
+vi.mock("@/utils/supabase", () => ({ uploadImage: mockUploadImage }));
 vi.mock("@clerk/nextjs/server", () => ({
-	auth: vi.fn(),
+	auth: mockAuth,
 	clerkClient: mockClerkClient,
 	currentUser: mockCurrentUser,
 }));
-vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
+vi.mock("next/cache", () => ({
+	revalidatePath: mockRevalidatePath,
+	revalidateTag: mockRevalidateTag,
+	unstable_cache: (callback: (...args: unknown[]) => unknown) => callback,
+}));
 vi.mock("next/navigation", () => ({ redirect: mockRedirect }));
 
 import {
 	createBookingAction,
+	createPropertyAction,
 	createProfileAction,
 	createReviewAction,
 	deleteBookingAction,
 	deleteReviewAction,
+	deleteRentalAction,
+	fetchFavoriteIdsForProperties,
 	fetchBookings,
+	fetchProperties,
+	fetchPropertyRatings,
+	fetchRentals,
 	fetchStats,
 	toggleFavoriteAction,
+	updatePropertyAction,
+	updatePropertyImageAction,
 } from "@/utils/actions";
 
 const authenticatedUser = {
@@ -71,10 +97,14 @@ const authenticatedUser = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	mockAuth.mockResolvedValue({ userId: authenticatedUser.id });
 	mockCurrentUser.mockResolvedValue(authenticatedUser);
 	mockClerkClient.mockResolvedValue({
 		users: { updateUserMetadata: mockUpdateUserMetadata },
 	});
+	mockUploadImage.mockResolvedValue(
+		"https://storage.example/property/image.png"
+	);
 });
 
 afterEach(() => {
@@ -246,6 +276,45 @@ describe("booking actions", () => {
 });
 
 describe("favorite actions", () => {
+	it("未ログイン時は一括お気に入り取得でDBへアクセスしない", async () => {
+		mockAuth.mockResolvedValue({ userId: null });
+
+		await expect(
+			fetchFavoriteIdsForProperties(["property_test_123"])
+		).resolves.toEqual({
+			favoriteIds: new Map(),
+			isSignedIn: false,
+		});
+
+		expect(mockDb.favorite.findMany).not.toHaveBeenCalled();
+	});
+
+	it("ログイン時は対象物件のお気に入りを一括取得する", async () => {
+		mockDb.favorite.findMany.mockResolvedValue([
+			{ id: "favorite_test_123", propertyId: "property_test_123" },
+		]);
+
+		const result = await fetchFavoriteIdsForProperties([
+			"property_test_123",
+			"property_test_456",
+		]);
+
+		expect(mockDb.favorite.findMany).toHaveBeenCalledOnce();
+		expect(mockDb.favorite.findMany).toHaveBeenCalledWith({
+			where: {
+				propertyId: {
+					in: ["property_test_123", "property_test_456"],
+				},
+				profileId: authenticatedUser.id,
+			},
+			select: { id: true, propertyId: true },
+		});
+		expect(result.isSignedIn).toBe(true);
+		expect(result.favoriteIds.get("property_test_123")).toBe(
+			"favorite_test_123"
+		);
+	});
+
 	it("creates a favorite for the authenticated user", async () => {
 		mockDb.favorite.create.mockResolvedValue({ id: "favorite_test_123" });
 
@@ -291,6 +360,146 @@ describe("favorite actions", () => {
 	});
 });
 
+describe("batched property queries", () => {
+	it("指定件数より1件多く取得してhasMoreを返す", async () => {
+		mockDb.property.findMany.mockResolvedValue(
+			Array.from({ length: 25 }, (_, index) => ({ id: `property_${index}` }))
+		);
+
+		const result = await fetchProperties({ take: 24, skip: 48 });
+
+		expect(result.properties).toHaveLength(24);
+		expect(result.hasMore).toBe(true);
+		expect(mockDb.property.findMany).toHaveBeenCalledWith(
+			expect.objectContaining({ take: 25, skip: 48 })
+		);
+	});
+
+	it("取得件数が指定件数以下ならhasMoreをfalseにする", async () => {
+		mockDb.property.findMany.mockResolvedValue(
+			Array.from({ length: 24 }, (_, index) => ({ id: `property_${index}` }))
+		);
+
+		await expect(fetchProperties({ take: 24 })).resolves.toMatchObject({
+			hasMore: false,
+		});
+	});
+
+	it("物件ごとの評価を1回のgroupByで取得する", async () => {
+		mockDb.review.groupBy.mockResolvedValue([
+			{
+				propertyId: "property_test_123",
+				_avg: { rating: 4.25 },
+				_count: { rating: 3 },
+			},
+		]);
+
+		const ratings = await fetchPropertyRatings([
+			"property_test_123",
+			"property_test_456",
+		]);
+
+		expect(mockDb.review.groupBy).toHaveBeenCalledOnce();
+		expect(mockDb.review.groupBy).toHaveBeenCalledWith({
+			by: ["propertyId"],
+			_avg: { rating: true },
+			_count: { rating: true },
+			where: {
+				propertyId: {
+					in: ["property_test_123", "property_test_456"],
+				},
+			},
+		});
+		expect(ratings.get("property_test_123")).toEqual({
+			rating: "4.3",
+			count: 3,
+		});
+	});
+
+	it("rental集計を1回のgroupByで取得する", async () => {
+		mockDb.property.findMany.mockResolvedValue([
+			{ id: "property_test_123", name: "Cabin", price: 100 },
+			{ id: "property_test_456", name: "Cottage", price: 200 },
+		]);
+		mockDb.booking.groupBy.mockResolvedValue([
+			{
+				propertyId: "property_test_123",
+				_sum: { totalNights: 4, orderTotal: 400 },
+			},
+		]);
+
+		await expect(fetchRentals()).resolves.toEqual([
+			{
+				id: "property_test_123",
+				name: "Cabin",
+				price: 100,
+				totalNightsSum: 4,
+				orderTotalSum: 400,
+			},
+			{
+				id: "property_test_456",
+				name: "Cottage",
+				price: 200,
+				totalNightsSum: null,
+				orderTotalSum: null,
+			},
+		]);
+
+		expect(mockDb.booking.groupBy).toHaveBeenCalledOnce();
+		expect(mockDb.booking.aggregate).not.toHaveBeenCalled();
+	});
+});
+
+describe("property cache invalidation", () => {
+	it("物件作成後にカタログキャッシュを失効する", async () => {
+		mockDb.property.create.mockResolvedValue({ id: "property_test_123" });
+
+		await expect(
+			createPropertyAction({}, createPropertyFormData())
+		).rejects.toThrow("REDIRECT:/");
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+
+	it("物件更新後にカタログキャッシュを失効する", async () => {
+		mockDb.property.update.mockResolvedValue({ id: "property_test_123" });
+		const formData = createPropertyFormData();
+		formData.set("id", "property_test_123");
+
+		await expect(updatePropertyAction({}, formData)).resolves.toEqual({
+			message: "Update Successful!!",
+		});
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+
+	it("物件画像更新後にカタログキャッシュを失効する", async () => {
+		mockDb.property.update.mockResolvedValue({ id: "property_test_123" });
+		const formData = new FormData();
+		formData.set("id", "property_test_123");
+		formData.set(
+			"image",
+			new File(["image"], "image.png", { type: "image/png" })
+		);
+
+		await expect(updatePropertyImageAction({}, formData)).resolves.toEqual({
+			message: "Property Image Updated Successfully!!",
+		});
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+
+	it("物件削除後にカタログキャッシュを失効する", async () => {
+		mockDb.property.delete.mockResolvedValue({ id: "property_test_123" });
+
+		await expect(
+			deleteRentalAction({ propertyId: "property_test_123" })
+		).resolves.toEqual({ message: "Rental deleted successfully!" });
+
+		expect(mockRevalidateTag).toHaveBeenCalledWith("properties");
+	});
+});
+
 describe("review actions", () => {
 	it("creates a validated review for the authenticated user", async () => {
 		const formData = new FormData();
@@ -333,3 +542,26 @@ describe("review actions", () => {
 		expect(mockRevalidatePath).toHaveBeenCalledWith("/reviews");
 	});
 });
+
+function createPropertyFormData() {
+	const formData = new FormData();
+	formData.set("name", "Mountain Cabin");
+	formData.set("tagline", "Quiet cabin in the mountains");
+	formData.set("price", "100");
+	formData.set("category", "cabin");
+	formData.set(
+		"description",
+		"A quiet cabin with beautiful views and plenty of room for guests"
+	);
+	formData.set("country", "JP");
+	formData.set("guests", "4");
+	formData.set("bedrooms", "2");
+	formData.set("beds", "3");
+	formData.set("baths", "1");
+	formData.set("amenities", "wifi");
+	formData.set(
+		"image",
+		new File(["image"], "image.png", { type: "image/png" })
+	);
+	return formData;
+}

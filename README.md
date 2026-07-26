@@ -22,7 +22,7 @@
 ```mermaid
 graph TB
     subgraph "フロントエンド層"
-        A[Next.js Pages/Components]
+        A[Next.js App Router / Server Components]
         B[React Components]
         C[Radix UI Components]
         D[Tailwind CSS]
@@ -63,7 +63,7 @@ graph TB
 
 | レイヤー | 技術 | 目的 |
 | ---------- | ------ | ------ |
-| フロントエンドフレームワーク | Next.js 15.5.18 | SSR/SSGを備えたフルスタックReactフレームワーク |
+| フロントエンドフレームワーク | Next.js 15.5.18 | App RouterとServer Componentsを備えたフルスタックReactフレームワーク |
 | UIライブラリ | React 19.2.7 | コンポーネントベースのUIライブラリ |
 | UIコンポーネント | Radix UI | アクセシブルで、スタイルなしのコンポーネントプリミティブ |
 | スタイリング | Tailwind CSS | ユーティリティファーストのCSSフレームワーク |
@@ -73,8 +73,8 @@ graph TB
 | 認証 | Clerk 6.39.x | ユーザー認証と管理 |
 | 決済 | Stripe 15.12.0 | 決済処理 |
 | ファイルストレージ | Supabase | 画像のためのクラウドストレージ |
-| バリデーション | Zod 3.22.4 | スキーマ検証 |
-| 状態管理 | Zustand 4.5.6 | 軽量な状態管理 |
+| バリデーション | Zod 4.4.3 | スキーマ検証 |
+| 状態管理 | Zustand 5.0.14 | 軽量な状態管理 |
 
 ## コアデータモデル
 
@@ -121,6 +121,17 @@ erDiagram
         datetime checkOut
         int orderTotal
         int totalNights
+        boolean paymentStatus
+        string checkoutSessionId
+        datetime checkoutSessionExpiresAt
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Favorite {
+        string id PK
+        string profileId FK "references Profile.clerkId"
+        string propertyId FK "references Property.id"
         datetime createdAt
         datetime updatedAt
     }
@@ -140,6 +151,8 @@ erDiagram
     Profile ||--o{ Review : "writes"
     Property ||--o{ Booking : "has"
     Property ||--o{ Review : "receives"
+    Profile ||--o{ Favorite : "clerkId referenced by profileId"
+    Property ||--o{ Favorite : "id referenced by propertyId"
 ```
 
 ## サーバーアクションアーキテクチャ
@@ -180,15 +193,15 @@ erDiagram
 
 ### 物件管理
 
-- **物件作成**: 画像アップロード、アメニティ選択、価格設定を含むマルチステップフォーム
+- **物件作成**: 画像アップロード、アメニティ選択、価格設定を含む入力フォーム
 - **物件一覧**: カテゴリ組織による検索・フィルタリング可能な物件カタログ
-- **物件詳細**: 画像ギャラリー、マップ、予約インターフェースを備えたリッチな物件ページ
+- **物件詳細**: 1枚のメイン画像、国単位の位置を示すマップ、予約インターフェースを備えた物件ページ
 
 ### ユーザー管理
 
 - **認証**: プロフィール管理を備えたClerkパワードの認証
 - **ユーザープロフィール**: 画像アップロードと個人情報を含むカスタマイズ可能なプロフィール
-- **ロールベースアクセス**: ゲスト、ホスト、管理者のための差別化された体験
+- **アクセス制御**: 認証状態、物件所有者、`ADMIN_USER_ID`に基づく操作制御
 
 ### 予約システム
 
@@ -196,16 +209,22 @@ erDiagram
 - **価格計算**: 税金と手数料計算を含む動的価格設定
 - **決済処理**: 確認機能付きのStripe統合チェックアウトフロー
 
+### Stripe決済フロー
+
+1. `app/api/payment/route.ts`が認証済みユーザー所有のBookingを検証し、埋め込みCheckout Sessionを作成または再利用する。
+2. `app/api/webhook/route.ts`が署名を検証し、`checkout.session.completed`と`checkout.session.async_payment_succeeded`で支払い済みBookingを冪等に確定する。
+3. `app/api/confirm/route.ts`がCheckoutのreturn URLを処理し、Sessionを再取得して支払い済みなら確定、未確定ならpending画面へ案内する。
+
 ### レビューと評価システム
 
 - **物件レビュー**: 5つ星評価を備えたユーザー生成レビュー
-- **レビュー管理**: ユーザー自身のレビューのCRUD操作
+- **レビュー管理**: ユーザー自身のレビューの作成と削除
 - **集計評価**: 計算された平均評価とレビュー数
 
 ### 管理機能
 
 - **管理ダッシュボード**: チャートとメトリクスを含む統計概要
-- **ユーザー管理**: ユーザーと物件の管理監督
+- **アクセス制御**: `ADMIN_USER_ID`で保護された統計画面
 - **分析**: 予約トレンドと収益追跡
 
 ## 認証と認可
@@ -237,7 +256,7 @@ sequenceDiagram
 - **ゲストユーザー**: 物件閲覧、予約作成
 - **認証ユーザー**: プロフィール管理、レビュー作成、お気に入り管理
 - **ホストユーザー**: 物件作成・管理
-- **管理者**: 全システム管理、統計閲覧
+- **管理者**: 統計閲覧
 
 ## 開発とデプロイメント
 
@@ -286,7 +305,7 @@ CMD ["node", "server.js"]
 - **Docker公開設定**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`、`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`、`NEXT_PUBLIC_WEBSITE_URL`をbuild argで渡す（サーバー用秘密値は渡さない）
 - **開発スクリプト**: `bun run dev`, `bun run build`
 - **Compose設定検証**: `bun run compose:check`（`.env`を展開・出力しない）
-- **データベーススクリプト**: `bun prisma generate`, `bun prisma migrate dev`（開発）, `bun prisma migrate deploy`（本番）
+- **データベーススクリプト**: `bunx prisma generate`, `bunx prisma migrate dev`（開発）, `bunx prisma migrate deploy`（本番）
 - **型生成**: TypeScript および Prisma 型生成
 
 ## パフォーマンス最適化
@@ -294,15 +313,15 @@ CMD ["node", "server.js"]
 ### フロントエンド最適化
 
 - **Server-Side Rendering (SSR)**: 初期ページロードの高速化
-- **Static Site Generation (SSG)**: 静的コンテンツの事前生成
+- **Server Components**: 読み取り処理をサーバー側に集約
 - **Image Optimization**: Next.js の最適化された画像コンポーネント
 - **Code Splitting**: 動的インポートによるバンドルサイズ削減
 
 ### データベース最適化
 
-- **インデックス**: 頻繁にクエリされるフィールドのインデックス作成
-- **リレーション**: 効率的なJOIN操作
-- **キャッシュ**: クエリ結果のキャッシュ戦略
+- **バッチ取得**: 一覧の評価・お気に入り・予約集計でN+1クエリを回避
+- **ページネーション**: 一覧クエリの取得件数を制限
+- **キャッシュ**: 匿名の物件一覧だけをタグ付きでキャッシュ
 
 ## セキュリティ考慮事項
 
@@ -311,12 +330,10 @@ CMD ["node", "server.js"]
 - **入力検証**: Zod スキーマによる厳密な検証
 - **SQL インジェクション防止**: Prisma ORM の使用
 - **認証トークン**: Clerk による安全なトークン管理
-
-### プライバシー
-
-- **GDPR 準拠**: ユーザーデータの適切な管理
-- **データ暗号化**: 機密情報の暗号化
-- **アクセスログ**: セキュリティ監査のためのログ記録
+- **保持期間**: Profile（氏名、メールアドレス、ユーザー名、画像URL）とBooking（宿泊日、金額、支払い状態、Stripe Checkout Session ID）は、自動削除期限を設定しておらず、明示的に削除されるまでPostgreSQLへ保持する。現行アプリにはProfile削除フローがなく、Bookingは本人の削除操作で削除される。Stripe側のPaymentIntentなどは本アプリのDBへ保存せず、Stripeアカウント側の保持設定に従う。Supabase上の画像にも自動削除期限はなく、DBレコード削除とStorage object削除は連動していない。
+- **暗号化とアクセス保護**: Clerk、Stripe、Supabaseとの通信はHTTPSを使用し、秘密鍵はサーバー環境変数だけで扱う。PostgreSQL接続のTLSは`DATABASE_URL`/`DIRECT_URL`と提供側設定に依存する。プロフィール、予約、画像への操作はClerk認証と所有者条件で制限する。アプリケーション独自のフィールド暗号化は実装していないため、保存時暗号化と鍵管理はPostgreSQL、Supabase、Stripe、Clerk各環境の設定・契約に依存し、運用時に有効化状況を確認する。
+- **アクセス監査**: 現行コードには個人データの閲覧・変更を記録する専用監査ログがない。利用できる記録はホスティング基盤、Clerk、Stripe、Supabase、データベース各サービスのログに限られ、保持期間も各サービス設定に従う。管理者アクセスとプロフィール・決済関連データの変更について、主体、対象、操作、結果、時刻を改ざん耐性のある監査先へ記録し、定期レビューする仕組みは今後の運用課題である。
+- **削除時の注意**: DB削除後のバックアップ保持・消去期間はデータベース提供側の設定に依存する。データ主体から削除依頼を受ける運用では、Clerk、PostgreSQL、Supabase Storage、Stripeおよびバックアップを対象にした手順と完了記録が別途必要である。
 
 ## 今後の拡張計画
 

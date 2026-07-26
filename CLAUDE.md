@@ -30,9 +30,9 @@ bun run test:run utils/__tests__/calculateTotals.test.ts
 bun run compose:check
 
 # Prisma マイグレーション
-bun prisma migrate dev
-bun prisma generate
-bun prisma studio
+bunx prisma migrate dev
+bunx prisma generate
+bunx prisma studio
 ```
 
 Compose設定を検証するときは必ず`bun run compose:check`を使用する。
@@ -46,7 +46,8 @@ Compose設定を検証するときは必ず`bun run compose:check`を使用す�
 app/                    # Next.js App Router ページ
   api/
     payment/route.ts    # Stripe セッション作成
-    confirm/route.ts    # 支払い確認・予約確定
+    confirm/route.ts    # return URLの支払い確認・予約確定
+    webhook/route.ts    # 署名検証付きの非同期予約確定
   admin/               # 管理ダッシュボード（ADMIN_USER_ID 必須）
   properties/          # 物件詳細・一覧
   bookings/            # 予約一覧
@@ -73,7 +74,7 @@ prisma/schema.prisma   # DB スキーマ
 ### 中心的な設計パターン
 
 **Server Actions の集中管理**
-全ビジネスロジックは `utils/actions.ts` に集約。クライアントコンポーネントから `import { someAction } from "@/utils/actions"` で直接呼び出す。API Routes は Stripe Webhook 用途のみ（`app/api/`）。
+主要なビジネスロジックは `utils/actions.ts` に集約。クライアントコンポーネントから `import { someAction } from "@/utils/actions"` で直接呼び出す。Stripe Checkoutの作成、return URL確認、Webhookは`app/api/`のRoute Handlerで扱う。
 
 ### **認証フロー（Clerk）**
 
@@ -83,8 +84,9 @@ prisma/schema.prisma   # DB スキーマ
 
 ### **Stripe 決済フロー**
 
-1. `app/api/payment/route.ts` → Stripe Checkout セッション作成（`paymentStatus: false` の Booking を作成）
-2. `app/api/confirm/route.ts` → Webhook で `paymentStatus: true` に更新
+1. `app/api/payment/route.ts` → 認証・Booking所有者を検証し、Stripe Checkout Sessionを作成または再利用
+2. `app/api/webhook/route.ts` → raw bodyの署名を検証し、完了・非同期支払い成功イベントで`paymentStatus: true`へ冪等更新
+3. `app/api/confirm/route.ts` → return URLからSessionを再取得し、支払い済みなら冪等更新、未確定ならpending画面へ遷移
 
 **Profile と clerkId の参照**
 `Profile.clerkId` が他モデル（Property, Booking, Review, Favorite）の外部キーとして使われる。`Profile.id`（UUID）ではなく `clerkId` で JOIN する設計に注意。
@@ -99,13 +101,13 @@ prisma/schema.prisma   # DB スキーマ
 ## テスト
 
 - フレームワーク: **Vitest** + `@testing-library/react` + `jsdom`
-- テスト場所: `utils/__tests__/` と `app/api/__tests__/`
+- テスト場所: `utils/__tests__/`、`app/api/__tests__/`、各コンポーネント付近の`*.test.tsx`
 - パスエイリアス: `@` → プロジェクトルート
 - モック規則: `vi.hoisted()` でモック変数をホイスト。Stripe は `class StripeMock { checkout = { sessions: { create: mockFn } } }` 形式
 
 ## 環境変数
 
-必須の環境変数（`.env.local`）:
+必須の環境変数（`.env.example`を参照してローカルの`.env`に設定）:
 
 - `DATABASE_URL` / `DIRECT_URL` — Supabase PostgreSQL
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY`

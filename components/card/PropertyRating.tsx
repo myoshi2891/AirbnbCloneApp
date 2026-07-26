@@ -1,13 +1,21 @@
 import { FaStar } from "react-icons/fa";
-import { fetchPropertyRating } from "@/utils/actions";
-async function PropertyRating({
-	propertyId,
+/**
+ * Displays a property rating with its review count.
+ *
+ * @param rating - The rating value to display.
+ * @param count - The number of reviews.
+ * @param inPage - Whether to include the review label and use in-page styling.
+ * @returns The rating display, or `null` when the review count is zero.
+ */
+function PropertyRating({
+	rating,
+	count,
 	inPage,
 }: {
-	propertyId: string;
+	rating: string | number;
+	count: number;
 	inPage: boolean;
 }) {
-	const { rating, count } = await fetchPropertyRating(propertyId);
 	if (count === 0) return null;
 
 	const className = `flex gap-1 items-center ${
