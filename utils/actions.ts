@@ -648,7 +648,7 @@ export const fetchBookings = async ({
 export const deleteBookingAction = async (prevState: { bookingId: string }) => {
 	const { bookingId } = prevState;
 	return authedAction(async (user) => {
-		const result = await db.booking.delete({
+		await db.booking.delete({
 			where: {
 				id: bookingId,
 				profileId: user.id,
