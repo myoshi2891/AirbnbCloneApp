@@ -26,7 +26,22 @@ const eligibleBooking = await db.booking.findFirst({
 
 Plan 014実装前にレビュー側を先行する場合だけ`paymentStatus: true`を暫定使用し、同じPR内へTODOとstatus移行testを置く。未宿泊、自分の物件、未来のcheckOut、未認証は拒否する。
 
-Reviewへ`bookingId String? @unique`とBooking relationを追加する。新規レビューはbookingIdを必須として保存し、既存行はnullのまま残す。UIはbookingIdありに「Verified stay」badge、nullにはbadgeなしとする。さらに`@@unique([profileId, propertyId])`を追加し、現在の事前findだけでなくDBでも1ユーザー1物件1レビューを保証する。Prismaはcompound uniqueをunique queryやupsertへ利用できる。[Prisma compound constraints](https://docs.prisma.io/docs/orm/prisma-client/special-fields-and-types/working-with-composite-ids-and-constraints)
+Reviewへ`bookingId String? @unique`とBooking relationを追加する。新規レビューはbookingIdを必須として保存し、既存行はnullのまま残す。UIはbookingIdありに「Verified stay」badge、nullにはbadgeなしとする。
+
+`@@unique([profileId, propertyId])`を追加する前に、次のqueryで既存重複を検出する。
+
+```sql
+SELECT "profileId", "propertyId", COUNT(*)
+FROM "Review"
+GROUP BY "profileId", "propertyId"
+HAVING COUNT(*) > 1;
+```
+
+重複がある場合は無条件にmigrationを進めない。各組の`createdAt`が最古、同時刻なら`id`が辞書順で最小の行を代表行とする。残りの行はrating、comment、作成日時、元Review IDを監査用の`ReviewDuplicateArchive`へコピーして内容を保持し、代表行のrating/commentは変更しない。現行schemaにはReviewを参照する子テーブルがないため参照更新は不要だが、先行変更で参照が追加済みなら削除対象Review IDを代表IDへ更新してから、archive済みの重複行だけをReviewから削除する。件数、代表ID、archive件数を検証してからunique migrationを適用する。
+
+`createReviewAction`の事前重複チェックは代表行を含む現行Reviewだけを対象とし、archive行は対象外とする。さらにcompound unique違反も重複レビューとして処理し、並行投稿を防ぐ。migrationがunique制約追加で失敗した場合は再実行を繰り返さず、上記queryと参照整合性で原因を確認し、未整理データをarchive・統合してから再実行する。
+
+整理完了後に`@@unique([profileId, propertyId])`を追加し、現在の事前findだけでなくDBでも1ユーザー1物件1レビューを保証する。Prismaはcompound uniqueをunique queryやupsertへ利用できる。[Prisma compound constraints](https://docs.prisma.io/docs/orm/prisma-client/special-fields-and-types/working-with-composite-ids-and-constraints)
 
 ## 2. ホスト返信
 

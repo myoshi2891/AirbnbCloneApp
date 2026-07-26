@@ -21,7 +21,9 @@ enum BookingCancelledBy {
 }
 ```
 
-Bookingへ`status BookingStatus @default(PENDING)`、`expiresAt DateTime? @db.Timestamptz(3)`、`paymentIntentId String? @unique`、`stripeRefundId String? @unique`、`cancelledBy BookingCancelledBy?`、`cancelledAt DateTime?`、`refundedAt DateTime?`を追加する。既存`checkoutSessionExpiresAt`は`expiresAt`へ統合する。
+既存の支払い済み予約には`paymentIntentId`がないため、schema変更より先に返金経路を確定する。`paymentStatus = true`の各Bookingについて、既存`checkoutSessionId`を使ってStripeのCheckout Sessionを取得し、`payment_status = paid`、`metadata.bookingId`が対象Bookingと一致することを検証して`payment_intent`を復元する。復元できたIDはexpand migration後の`paymentIntentId`へバックフィルする。Session ID欠損、Stripe上で取得不能、metadata不一致、またはPaymentIntent欠損の行は、業務上の明示状態`LEGACY_REFUND_UNAVAILABLE`（DB上は`status = CONFIRMED AND paymentIntentId IS NULL`）として移行レポートへBooking IDと理由だけを記録する。この行は手動調査の対象とし、自動返金を試行しない。
+
+Bookingへ`status BookingStatus @default(PENDING)`、`expiresAt DateTime? @db.Timestamptz(3)`、`paymentIntentId String? @unique`、`stripeRefundId String? @unique`、`cancelledBy BookingCancelledBy?`、`cancelledAt DateTime?`、`refundedAt DateTime?`を追加する。既存`checkoutSessionExpiresAt`は`expiresAt`へ統合する。`cancelBookingAction`は返金対象のCONFIRMED予約について`paymentIntentId IS NOT NULL`を同じtransaction内で必須条件とし、未設定なら`LEGACY_REFUND_UNAVAILABLE`エラーで停止する。`paymentIntentId`未設定のままREFUND_PENDINGへ遷移させてはならない。
 
 ## 1. 状態遷移
 
@@ -37,11 +39,15 @@ Bookingへ`status BookingStatus @default(PENDING)`、`expiresAt DateTime? @db.Ti
 | REFUND_PENDING | refund succeeded | refund API応答またはwebhook | REFUNDED | refund ID、refundedAtを保存 |
 | REFUND_PENDING | retry | 同じBooking | REFUND_PENDING | 同じidempotency keyで再試行 |
 
-終端状態は`CANCELLED`、`REFUNDED`、`EXPIRED`。終端状態からのユーザー操作による遷移は拒否する。`checkout.session.async_payment_failed`は即時の新状態を増やさず、Session expiryまでPENDINGとして扱う。
+終端状態は`CANCELLED`、`REFUNDED`、`EXPIRED`。終端状態からのユーザー操作による遷移は拒否する。`checkout.session.async_payment_failed`は即時の新状態を増やさず、Session expiryまでPENDINGとして扱う。`LEGACY_REFUND_UNAVAILABLE`はBookingStatusの追加値ではなく、既存CONFIRMED予約の移行時だけ使う返金可否分類である。
 
 ## 2. migrationと既存データ
 
-SQL素案:
+適用順はexpand → データバックフィル → unique制約 → アプリ切替 → contractとし、各段階を別コミットまたは別デプロイ境界にする。
+
+### 2.1 expand
+
+まずenumとnullable列だけを追加する。
 
 ```sql
 CREATE TYPE "BookingStatus" AS ENUM (
@@ -49,14 +55,25 @@ CREATE TYPE "BookingStatus" AS ENUM (
   'REFUND_PENDING', 'REFUNDED', 'EXPIRED'
 );
 
+CREATE TYPE "BookingCancelledBy" AS ENUM (
+  'GUEST', 'HOST', 'SYSTEM'
+);
+
 ALTER TABLE "Booking"
   ADD COLUMN "status" "BookingStatus",
   ADD COLUMN "expiresAt" TIMESTAMPTZ(3),
   ADD COLUMN "paymentIntentId" TEXT,
   ADD COLUMN "stripeRefundId" TEXT,
+  ADD COLUMN "cancelledBy" "BookingCancelledBy",
   ADD COLUMN "cancelledAt" TIMESTAMPTZ(3),
   ADD COLUMN "refundedAt" TIMESTAMPTZ(3);
+```
 
+### 2.2 データバックフィル
+
+旧列から状態と期限を移し、続けて前述のStripe取得ジョブで支払い済み予約の`paymentIntentId`を更新する。ジョブはBooking IDで再開可能かつ冪等にし、PaymentIntent IDをログへ出力しない。
+
+```sql
 UPDATE "Booking"
 SET "status" = CASE
   WHEN "paymentStatus" = TRUE THEN 'CONFIRMED'::"BookingStatus"
@@ -64,13 +81,95 @@ SET "status" = CASE
   ELSE 'EXPIRED'::"BookingStatus"
 END,
 "expiresAt" = "checkoutSessionExpiresAt";
+```
+
+バックフィル完了条件は最初の2 queryが`0`を返すこと。3番目は復元不能行の件数であり、`0`でなければ全Booking IDと理由が移行レポートに存在し、`LEGACY_REFUND_UNAVAILABLE`として扱われることを確認する。
+
+```sql
+SELECT COUNT(*) FROM "Booking" WHERE "status" IS NULL;
+SELECT COUNT(*) FROM "Booking"
+WHERE "expiresAt" IS DISTINCT FROM "checkoutSessionExpiresAt";
+SELECT COUNT(*) FROM "Booking"
+WHERE "status" = 'CONFIRMED' AND "paymentIntentId" IS NULL;
+```
+
+### 2.3 制約追加とアプリ切替
+
+重複がないことを確認してPrismaの`@unique`と同名のunique indexを追加し、statusを必須化する。
+
+```sql
+SELECT "paymentIntentId", COUNT(*)
+FROM "Booking"
+WHERE "paymentIntentId" IS NOT NULL
+GROUP BY "paymentIntentId"
+HAVING COUNT(*) > 1;
+
+SELECT "stripeRefundId", COUNT(*)
+FROM "Booking"
+WHERE "stripeRefundId" IS NOT NULL
+GROUP BY "stripeRefundId"
+HAVING COUNT(*) > 1;
+
+CREATE UNIQUE INDEX "Booking_paymentIntentId_key"
+  ON "Booking"("paymentIntentId");
+CREATE UNIQUE INDEX "Booking_stripeRefundId_key"
+  ON "Booking"("stripeRefundId");
 
 ALTER TABLE "Booking"
   ALTER COLUMN "status" SET NOT NULL,
-  ALTER COLUMN "status" SET DEFAULT 'PENDING';
+  ALTER COLUMN "status" SET DEFAULT 'PENDING'::"BookingStatus";
 ```
 
-unique indexと`cancelledBy` enum追加後、アプリをstatus読み取りへ切り替え、Booleanとの二重書き期間を経て`paymentStatus`と`checkoutSessionExpiresAt`を削除する。trueは全件CONFIRMED、falseは有効期限が未来の行だけPENDING、それ以外はEXPIREDとするため、古い未払い行が在庫を永久に塞がない。
+この状態でアプリを新旧列の二重書きへ切り替え、status基準の読み取りを先にデプロイする。trueは全件CONFIRMED、falseは有効期限が未来の行だけPENDING、それ以外はEXPIREDとするため、古い未払い行が在庫を永久に塞がない。全消費箇所が新列へ移行し、Stripe成功処理が新規CONFIRMED予約へ必ず`paymentIntentId`を保存することを確認する。
+
+### 2.4 contractと最終検証
+
+旧列参照がコードと実行中プロセスからなくなった後にだけ旧列を削除する。
+
+```sql
+ALTER TABLE "Booking"
+  DROP COLUMN "paymentStatus",
+  DROP COLUMN "checkoutSessionExpiresAt";
+```
+
+最終検証では、次のqueryが1行を返し、すべて`true`であることを確認する。
+
+```sql
+SELECT
+  enum_range(NULL::"BookingStatus")::text =
+    '{PENDING,CONFIRMED,CANCELLED,REFUND_PENDING,REFUNDED,EXPIRED}'
+    AS booking_status_matches,
+  enum_range(NULL::"BookingCancelledBy")::text =
+    '{GUEST,HOST,SYSTEM}' AS cancelled_by_enum_matches,
+  EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Booking' AND column_name = 'status'
+      AND is_nullable = 'NO' AND column_default LIKE '%PENDING%'
+  ) AS status_is_required,
+  (
+    SELECT COUNT(*) = 7 FROM information_schema.columns
+    WHERE table_name = 'Booking'
+      AND column_name IN (
+        'expiresAt', 'paymentIntentId', 'stripeRefundId', 'cancelledBy',
+        'cancelledAt', 'refundedAt', 'status'
+      )
+  ) AS expected_columns_exist,
+  EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE tablename = 'Booking'
+      AND indexname = 'Booking_paymentIntentId_key'
+  ) AS payment_intent_is_unique,
+  EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE tablename = 'Booking'
+      AND indexname = 'Booking_stripeRefundId_key'
+  ) AS refund_id_is_unique,
+  NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Booking'
+      AND column_name IN ('paymentStatus', 'checkoutSessionExpiresAt')
+  ) AS legacy_columns_removed;
+```
 
 ## 3. holdとexpiry
 
@@ -86,7 +185,7 @@ Checkout Sessionの支払い成功後は`payment_intent`参照を持つため、
 `cancelBookingAction`の処理順:
 
 1. 認証ユーザーがゲスト本人または物件所有者で、現在状態がCONFIRMEDであることをtransaction内で確認する。
-2. 返金対象なら`updateMany({ status: CONFIRMED }, { status: REFUND_PENDING, cancelledBy, cancelledAt })`で単一実行者を確定する。
+2. 返金対象なら`paymentIntentId`が存在することを確認し、`updateMany({ status: CONFIRMED, paymentIntentId: { not: null } }, { status: REFUND_PENDING, cancelledBy, cancelledAt })`で単一実行者を確定する。未設定なら状態を変えず`LEGACY_REFUND_UNAVAILABLE`を返す。
 3. `stripe.refunds.create({ payment_intent: paymentIntentId, reason: "requested_by_customer", metadata: { bookingId } }, { idempotencyKey: "booking-refund-<bookingId>" })`を呼ぶ。
 4. succeededならREFUNDED、pending/requires_actionならREFUND_PENDINGを維持する。API失敗時もREFUND_PENDINGのまま安全に再試行する。
 5. `refund.updated`または`charge.refunded` webhookで最終状態を同期する。

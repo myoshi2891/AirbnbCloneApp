@@ -48,13 +48,19 @@ const where: Prisma.PropertyWhereInput = {
 
 2026-07-22にPrisma Client 6.6.0からSupabaseへ`take: 1`の読み取り専用queryを発行し、`bookings: { none: { overlap, paymentStatus: true } }`が成功することを確認した。データ内容やIDは出力していない。
 
-Plan 014実装後は内側を次へ置換する。
+Plan 014実装後は、status条件を必ず`bookings.none`の内側へ置き、`none` object全体を次へ置換する。トップレベルの`OR`は物件名・tagline検索専用であり、予約status条件を混在させない。
 
 ```ts
-OR: [
-  { status: "CONFIRMED" },
-  { status: "PENDING", expiresAt: { gt: now } },
-]
+bookings: {
+  none: {
+    checkIn: { lt: checkOut },
+    checkOut: { gt: checkIn },
+    OR: [
+      { status: "CONFIRMED" },
+      { status: "PENDING", expiresAt: { gt: now } },
+    ],
+  },
+},
 ```
 
 overlap定義は予約作成と検索で同じ`checkIn < requestedCheckOut && checkOut > requestedCheckIn`を使うため、共有helperへ切り出して境界テストを共用する。

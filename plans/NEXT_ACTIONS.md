@@ -147,8 +147,8 @@ NA-009 リリースは、NA-001/002の実施方針を確定してから行う
 
 詳細仕様は[Plan 015 Outcome](./015-outcome.md)を正とする。
 
-- URLを唯一の検索状態とし、`propertySearchSchema`でcategory、country、guest数、価格帯、日付を正規化する。
-- フィルターなしの一覧は既存cacheを維持し、動的フィルターは直接queryする。
+- URLを唯一の検索状態とし、`propertySearchSchema`でsearch、category、country、guest数、価格帯、日付を正規化する。
+- search/category/price/guests/countryだけの検索は全対象filterを`fetchPropertiesCached`へ渡し、既存`properties`タグ・300秒TTLを使う。checkIn/checkOut指定時だけ`unstable_cache`を迂回して直接queryし、同一URL内でcache経由と直接queryを混在させない。
 - 日付検索の空室判定はNA-003 phase 2の有効なPENDING/CONFIRMED条件を使う。
 - desktop/mobileのFilter UI、clear、pagination時のquery維持を実装する。
 
