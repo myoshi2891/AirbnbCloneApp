@@ -22,7 +22,7 @@
 ```mermaid
 graph TB
     subgraph "フロントエンド層"
-        A[Next.js Pages/Components]
+        A[Next.js App Router / Server Components]
         B[React Components]
         C[Radix UI Components]
         D[Tailwind CSS]
@@ -130,8 +130,8 @@ erDiagram
 
     Favorite {
         string id PK
-        string profileId FK
-        string propertyId FK
+        string profileId FK "references Profile.clerkId"
+        string propertyId FK "references Property.id"
         datetime createdAt
         datetime updatedAt
     }
@@ -151,8 +151,8 @@ erDiagram
     Profile ||--o{ Review : "writes"
     Property ||--o{ Booking : "has"
     Property ||--o{ Review : "receives"
-    Profile ||--o{ Favorite : "saves"
-    Property ||--o{ Favorite : "is saved"
+    Profile ||--o{ Favorite : "clerkId referenced by profileId"
+    Property ||--o{ Favorite : "id referenced by propertyId"
 ```
 
 ## サーバーアクションアーキテクチャ
@@ -330,6 +330,10 @@ CMD ["node", "server.js"]
 - **入力検証**: Zod スキーマによる厳密な検証
 - **SQL インジェクション防止**: Prisma ORM の使用
 - **認証トークン**: Clerk による安全なトークン管理
+- **保持期間**: Profile（氏名、メールアドレス、ユーザー名、画像URL）とBooking（宿泊日、金額、支払い状態、Stripe Checkout Session ID）は、自動削除期限を設定しておらず、明示的に削除されるまでPostgreSQLへ保持する。現行アプリにはProfile削除フローがなく、Bookingは本人の削除操作で削除される。Stripe側のPaymentIntentなどは本アプリのDBへ保存せず、Stripeアカウント側の保持設定に従う。Supabase上の画像にも自動削除期限はなく、DBレコード削除とStorage object削除は連動していない。
+- **暗号化とアクセス保護**: Clerk、Stripe、Supabaseとの通信はHTTPSを使用し、秘密鍵はサーバー環境変数だけで扱う。PostgreSQL接続のTLSは`DATABASE_URL`/`DIRECT_URL`と提供側設定に依存する。プロフィール、予約、画像への操作はClerk認証と所有者条件で制限する。アプリケーション独自のフィールド暗号化は実装していないため、保存時暗号化と鍵管理はPostgreSQL、Supabase、Stripe、Clerk各環境の設定・契約に依存し、運用時に有効化状況を確認する。
+- **アクセス監査**: 現行コードには個人データの閲覧・変更を記録する専用監査ログがない。利用できる記録はホスティング基盤、Clerk、Stripe、Supabase、データベース各サービスのログに限られ、保持期間も各サービス設定に従う。管理者アクセスとプロフィール・決済関連データの変更について、主体、対象、操作、結果、時刻を改ざん耐性のある監査先へ記録し、定期レビューする仕組みは今後の運用課題である。
+- **削除時の注意**: DB削除後のバックアップ保持・消去期間はデータベース提供側の設定に依存する。データ主体から削除依頼を受ける運用では、Clerk、PostgreSQL、Supabase Storage、Stripeおよびバックアップを対象にした手順と完了記録が別途必要である。
 
 ## 今後の拡張計画
 
