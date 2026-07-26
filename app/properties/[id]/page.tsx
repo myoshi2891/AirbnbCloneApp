@@ -23,6 +23,13 @@ import SubmitReview from "@/components/reviews/SubmitReview";
 import PropertyReviews from "@/components/reviews/PropertyReviews";
 import { auth } from "@clerk/nextjs/server";
 
+/**
+ * Renders the property details page for the requested property.
+ *
+ * Redirects to the home page when the property cannot be found.
+ *
+ * @returns The rendered property details page
+ */
 async function PropertyDetailsPage({
 	params,
 }: {

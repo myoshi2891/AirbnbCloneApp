@@ -464,6 +464,12 @@ export const deleteReviewAction = async (prevState: { reviewId: string }) => {
 	});
 };
 
+/**
+ * Retrieves the average rating and review count for a property.
+ *
+ * @param propertyId - The property identifier
+ * @returns An object containing the average rating rounded to one decimal place and the review count.
+ */
 export async function fetchPropertyRating(propertyId: string) {
 	const result = await db.review.groupBy({
 		by: ["propertyId"],

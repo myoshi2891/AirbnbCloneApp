@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "../ui/input";
 
+/**
+ * Renders a debounced search input that updates the URL search parameter and clears pagination.
+ */
 function NavSearch() {
 	const searchParams = useSearchParams();
 	const { replace } = useRouter();

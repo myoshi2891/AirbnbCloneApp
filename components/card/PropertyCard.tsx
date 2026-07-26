@@ -6,6 +6,14 @@ import { PropertyCardProps } from "@/utils/types";
 import { formatCurrency } from "@/utils/format";
 import FavoriteToggleButton from "./FavoriteToggleButton";
 
+/**
+ * Renders a property listing card with property details, rating, location, and favorite controls.
+ *
+ * @param property - The property details displayed in the card
+ * @param rating - The property's rating and review count
+ * @param favoriteId - The identifier of the property's existing favorite, or `null` if it is not favorited
+ * @param isSignedIn - Whether the current user is signed in
+ */
 function PropertyCard({
 	property,
 	rating,
