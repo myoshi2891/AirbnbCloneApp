@@ -1,4 +1,12 @@
 import { FaStar } from "react-icons/fa";
+/**
+ * Displays a property rating with its review count.
+ *
+ * @param rating - The rating value to display.
+ * @param count - The number of reviews.
+ * @param inPage - Whether to include the review label and use in-page styling.
+ * @returns The rating display, or `null` when the review count is zero.
+ */
 function PropertyRating({
 	rating,
 	count,

@@ -6,6 +6,11 @@ import {
 } from "@/utils/actions";
 
 
+/**
+ * Renders property cards with rating and favorite state.
+ *
+ * @param properties - The properties to display.
+ */
 async function PropertiesList({ properties }: { properties: PropertyCardProps[] }) {
 	const propertyIds = properties.map((property) => property.id);
 	const [ratings, favoriteState] = await Promise.all([

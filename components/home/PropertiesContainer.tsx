@@ -5,6 +5,12 @@ import type { PropertyCardProps } from "@/utils/types";
 import { pageSchema } from "@/utils/schemas";
 import Link from "next/link";
 import { Button } from "../ui/button";
+/**
+ * Displays filtered properties with an empty state and pagination controls when more results are available.
+ *
+ * @param page - The requested page number, defaulting to the first page when invalid or omitted.
+ * @returns The rendered property list, empty state, or load-more control.
+ */
 async function PropertiesContainer({
 	category,
 	search,

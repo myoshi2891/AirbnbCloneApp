@@ -2,10 +2,12 @@ import { CardSignInButton } from "../form/Buttons";
 import FavoriteToggleForm from "./FavoriteToggleForm";
 
 /**
- * Render the favorite toggle UI for a property, or a sign-in button when the user is not authenticated.
+ * Displays the favorite control for a property based on the user's authentication state.
  *
- * @param propertyId - The identifier of the property to toggle as a favorite
- * @returns A React element: `FavoriteToggleForm` with the property's favorite id when the user is signed in, or `CardSignInButton` to prompt sign-in otherwise
+ * @param propertyId - The identifier of the property.
+ * @param favoriteId - The property's favorite identifier, or `null` if it is not favorited.
+ * @param isSignedIn - Whether the user is authenticated.
+ * @returns The favorite toggle form for authenticated users or a sign-in button otherwise.
  */
 function FavoriteToggleButton({
 	propertyId,
