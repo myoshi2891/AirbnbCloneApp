@@ -227,8 +227,15 @@ WHERE "id" = '<テストBooking ID>';
 ### 8.3 非同期成功webhook
 
 1. 8.2とは別に未払いのテストBookingを1件作り、対象Booking IDだけを安全な作業メモへ控える。
-2. Stripe sandboxのテストfixtureで`checkout.session.async_payment_succeeded`イベントを用意する。`data.object.payment_status`は`paid`、`data.object.metadata.bookingId`は対象Booking IDにする。署名検証を通すため、手書きJSONを直接POSTせず、Stripe Dashboardまたは承認済みStripe CLIから送信する。
-3. migrationを適用した環境のWebhook endpointへテストイベントを送信する。
+2. migrationを適用した環境のWebhook endpointが、対象Stripe sandboxで`checkout.session.async_payment_succeeded`を受信する有効なWebhook destinationとして登録済みであることを確認し、承認済みStripe CLIで次を実行する。`<非同期成功テストBooking ID>`は手順1で控えた値へ置き換える。
+
+   ```bash
+   stripe trigger checkout.session.async_payment_succeeded \
+     --override checkout_session:"metadata[bookingId]"='<非同期成功テストBooking ID>'
+   ```
+
+   この成功イベントでは`data.object.payment_status=paid`となる。`payment_status`はCheckout Session作成時に指定できる入力ではないため、CLIのoverrideには追加せず、次の手順で生成結果を確認する。
+3. Stripe Workbenchで生成された`checkout.session.async_payment_succeeded`の`data.object.payment_status`が`paid`、`data.object.metadata.bookingId`が対象Booking IDであり、migrationを適用した環境のWebhook endpointへStripe署名付きで配信されたことを確認する。手書きJSONを直接POSTしない。
 4. Stripe DashboardまたはCLIのdelivery結果でWebhook応答が2xxであることを確認する。
 5. DB管理画面で次だけを照合し、`payment_status_is_true = true`を確認する。Booking行全体、Session ID、イベントpayloadは記録へ貼らない。
 
