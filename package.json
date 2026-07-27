@@ -28,7 +28,7 @@
 		"@radix-ui/react-toast": "^1.1.5",
 		"@stripe/react-stripe-js": "^6.8.0",
 		"@stripe/stripe-js": "^9.10.0",
-		"@supabase/supabase-js": "^2.105.4",
+		"@supabase/supabase-js": "^2.110.8",
 		"class-variance-authority": "^0.7.0",
 		"clsx": "^2.1.0",
 		"date-fns": "^3.6.0",
